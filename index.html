@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주택연금 서류 가이드</title>
+    
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f4f7f9; padding: 10px; font-size: 14px; margin:0; }
+        .wrap { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        header { background: #004b93; color: #fff; padding: 20px; text-align: center; }
+        .q-sec { padding: 15px; border-bottom: 5px solid #f4f7f9; }
+        .card { margin-bottom: 15px; }
+        .card-t { font-weight: bold; margin-bottom: 8px; display: block; color: #333; }
+
+        /* ── 라디오 버튼: 숨기지 않고 opacity:0 + absolute로 처리 (iOS 클릭 영역 보장) ── */
+        .r-grp { display: flex; gap: 5px; }
+        .r-grp label {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 12px;
+            text-align: center;
+            border-radius: 5px;
+            background: #fff;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .r-grp input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            top: 0; left: 0;
+            cursor: pointer;
+            z-index: 1;
+        }
+        /* 선택 상태: JS로 .selected 클래스를 label에 추가 */
+        .r-grp label.selected { background: #004b93; color: #fff; border-color: #004b93; font-weight: bold; }
+
+        .res-sec { padding: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+        th, td { border: 1px solid #ccc; padding: 8px; font-size: 13px; vertical-align: top; word-break: break-all; }
+        th { background: #f8f9fa; }
+        .cat { width: 70px; text-align: center; font-weight: bold; background: #f0f4f8; }
+        ul { padding-left: 15px; margin: 0; }
+        li { margin-bottom: 4px; }
+        .tax-note { font-size: 11px; color: #d32f2f; background: #fff0f0; padding: 5px; border-radius: 3px; margin-top: 5px; }
+
+        .btn-box { padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        button {
+            padding: 15px; border-radius: 5px; border: none; font-weight: bold; font-size: 16px;
+            cursor: pointer; -webkit-tap-highlight-color: transparent;
+            -webkit-appearance: none; appearance: none;
+        }
+        .b-copy { background: #555; color: #fff; }
+        .b-pdf  { background: #004b93; color: #fff; }
+
+        /* 토스트 알림 */
+        #toast {
+            display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.75); color: #fff; padding: 10px 20px; border-radius: 20px;
+            font-size: 14px; z-index: 999; white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrap">
+    <header>
+        <div style="font-weight:bold; font-size:18px;">서부산주택연금 가이드</div>
+        <div style="font-size:12px; margin-top:5px; opacity:0.8;">상담 없이 확인하는 맞춤 서류 안내</div>
+    </header>
+
+    <div class="q-sec">
+        <div class="card">
+            <span class="card-t">1. 배우자 유무</span>
+            <div class="r-grp">
+                <label id="lbl_q1_Y"><input type="radio" name="q1" value="Y">있음</label>
+                <label id="lbl_q1_N" class="selected"><input type="radio" name="q1" value="N" checked>없음</label>
+            </div>
+        </div>
+        <div id="box_q2" class="card" style="display:none;">
+            <span class="card-t">2. 배우자 주소지</span>
+            <div class="r-grp">
+                <label id="lbl_q2_Y" class="selected"><input type="radio" name="q2" value="Y" checked>동일</label>
+                <label id="lbl_q2_N"><input type="radio" name="q2" value="N">다름</label>
+            </div>
+        </div>
+        <div id="box_q3" class="card" style="display:none;">
+            <span class="card-t">3. 공동소유 여부</span>
+            <div class="r-grp">
+                <label id="lbl_q3_Y"><input type="radio" name="q3" value="Y">공동</label>
+                <label id="lbl_q3_N" class="selected"><input type="radio" name="q3" value="N" checked>단독</label>
+            </div>
+        </div>
+        <div class="card">
+            <span class="card-t">4. 신탁방식 희망</span>
+            <div class="r-grp">
+                <label id="lbl_q4_Y"><input type="radio" name="q4" value="Y">예</label>
+                <label id="lbl_q4_N" class="selected"><input type="radio" name="q4" value="N" checked>아니오</label>
+            </div>
+        </div>
+        <div class="card">
+            <span class="card-t">5. 우대형 가입대상</span>
+            <div class="r-grp">
+                <label id="lbl_q5_Y"><input type="radio" name="q5" value="Y">예</label>
+                <label id="lbl_q5_N" class="selected"><input type="radio" name="q5" value="N" checked>아니오</label>
+            </div>
+        </div>
+        <div class="card">
+            <span class="card-t">6. 오피스텔 여부</span>
+            <div class="r-grp">
+                <label id="lbl_q6_Y"><input type="radio" name="q6" value="Y">예</label>
+                <label id="lbl_q6_N" class="selected"><input type="radio" name="q6" value="N" checked>아니오</label>
+            </div>
+        </div>
+        <div class="card">
+            <span class="card-t">7. 대출상환 일시금 필요</span>
+            <div class="r-grp">
+                <label id="lbl_q7_Y"><input type="radio" name="q7" value="Y">예</label>
+                <label id="lbl_q7_N" class="selected"><input type="radio" name="q7" value="N" checked>아니오</label>
+            </div>
+        </div>
+        <div class="card">
+            <span class="card-t">8. 등기권리증 보유</span>
+            <div class="r-grp">
+                <label id="lbl_q8_Y"><input type="radio" name="q8" value="Y">예</label>
+                <label id="lbl_q8_N" class="selected"><input type="radio" name="q8" value="N" checked>아니오</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="res-sec" id="capture_area">
+        <div id="summary_box" style="font-size:11px; color:#666; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;"></div>
+        <table id="res_table">
+            <thead>
+                <tr><th class="cat">구분</th><th>신청인</th><th id="th_spouse">배우자</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="cat">주민센터</td>
+                    <td><ul id="app_center"></ul></td>
+                    <td id="td_spouse_center"><ul id="spouse_center"></ul></td>
+                </tr>
+                <tr>
+                    <td class="cat">기타</td>
+                    <td><ul id="app_etc"></ul></td>
+                    <td id="td_spouse_etc"><ul id="spouse_etc"></ul></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="btn-box">
+        <button class="b-copy" onclick="copyTxt()">📋 결과 복사하기</button>
+        <button class="b-pdf"  onclick="savePdf()">💾 PDF 저장 (이미지)</button>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+    /* ── 선택 상태 스타일을 JS로 직접 관리 (iOS :checked CSS 불안정 대응) ── */
+    function syncLabels(name) {
+        document.querySelectorAll('input[name="' + name + '"]').forEach(function(inp) {
+            var lbl = inp.parentElement;
+            if (inp.checked) lbl.classList.add('selected');
+            else             lbl.classList.remove('selected');
+        });
+    }
+
+    function getV(name) {
+        var node = document.querySelector('input[name="' + name + '"]:checked');
+        return node ? node.value : 'N';
+    }
+
+    function update() {
+        // 모든 그룹 라벨 동기화
+        ['q1','q2','q3','q4','q5','q6','q7','q8'].forEach(syncLabels);
+
+        var q = {
+            spouse:  getV('q1'),
+            addr:    getV('q2'),
+            owner:   getV('q3'),
+            trust:   getV('q4'),
+            special: getV('q5'),
+            office:  getV('q6'),
+            loan:    getV('q7'),
+            doc:     getV('q8')
+        };
+
+        // 배우자 관련 질문 노출
+        document.getElementById('box_q2').style.display = q.spouse === 'Y' ? 'block' : 'none';
+        document.getElementById('box_q3').style.display = q.spouse === 'Y' ? 'block' : 'none';
+
+        var spDisplay = q.spouse === 'Y' ? '' : 'none';
+        document.getElementById('th_spouse').style.display       = spDisplay;
+        document.getElementById('td_spouse_center').style.display = spDisplay;
+        document.getElementById('td_spouse_etc').style.display   = spDisplay;
+
+        // 서류 목록 생성
+        var app_c = [
+            "신청인 등본 2부",
+            "신청인 초본 1부(전주소포함)",
+            "전입세대확인서 1부",
+            "신청인 가족관계(상세) 1부",
+            "신청인 인감증명 2부"
+        ];
+        var sp_c = [];
+
+        if (q.spouse === 'Y') {
+            sp_c.push("배우자 가족관계(상세) 1부");
+            sp_c.push("배우자 인감증명 " + (q.owner === 'Y' ? "2부" : "1부"));
+            if (q.addr === 'N') sp_c.push("배우자 등본 1부");
+        }
+
+        if (q.trust === 'Y') {
+            var note = '<div class="tax-note"><b>[신탁유의]</b> 1)뒷자리표시 2)목적:부동산신탁 3)담보주택주소표시<br><a href="https://blog.naver.com/bukzzi/224010709846" target="_blank">상세가이드 보기</a></div>';
+            app_c.push("신청인 지방세 납세증명" + note);
+            if (q.spouse === 'Y' && q.owner === 'Y') sp_c.push("배우자 지방세 납세증명" + note);
+        }
+
+        if (q.special === 'Y') app_c.push("기초연금 수급자 확인서 1부");
+        if (q.office  === 'Y') app_c.push("지방세목별 납세증명 1부");
+
+        var app_e = ["신청인 인감도장 및 신분증"];
+        var sp_e  = q.spouse === 'Y' ? ["배우자 인감도장 및 신분증"] : [];
+        if (q.loan === 'Y') app_e.push("대출잔액증명서 1부");
+        if (q.doc  === 'Y') app_e.push("등기권리증 원본");
+
+        function render(id, list) {
+            document.getElementById(id).innerHTML = list.map(function(i){ return '<li>' + i + '</li>'; }).join('');
+        }
+        render('app_center',    app_c);
+        render('app_etc',       app_e);
+        render('spouse_center', sp_c);
+        render('spouse_etc',    sp_e);
+
+        var sumArr = [
+            "배우자:" + q.spouse,
+            "방식:" + (q.trust === 'Y' ? '신탁' : '저당'),
+            "우대형:" + q.special,
+            "오피스텔:" + q.office
+        ];
+        document.getElementById('summary_box').innerText = sumArr.join(' / ');
+    }
+
+    /* ── 초기화 + 이벤트 바인딩 ── */
+    window.onload = function() {
+        update();
+        document.querySelectorAll('input[type="radio"]').forEach(function(inp) {
+            // touchend로 iOS 지연 없이 즉시 반응
+            inp.addEventListener('touchend', function(e) {
+                e.preventDefault(); // 300ms 딜레이 제거
+                this.checked = true;
+                update();
+            });
+            inp.addEventListener('change', update);
+        });
+    };
+
+    /* ── 토스트 메시지 ── */
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.display = 'block';
+        setTimeout(function(){ t.style.display = 'none'; }, 2000);
+    }
+
+    /* ── 텍스트 복사 (iOS 호환) ── */
+    function copyTxt() {
+        var res = document.getElementById('res_table').innerText;
+        var text = "[주택연금 필요서류 결과]\n" + res;
+
+        // navigator.clipboard (iOS 13.4+, HTTPS 필요)
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text)
+                .then(function(){ showToast("복사되었습니다 ✓"); })
+                .catch(function(){ fallbackCopy(text); });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;font-size:16px;";
+        document.body.appendChild(ta);
+        ta.focus();
+        // iOS 전용: setSelectionRange 사용
+        ta.setSelectionRange(0, 99999);
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(ta);
+        showToast(ok ? "복사되었습니다 ✓" : "복사 실패 — 직접 선택해 주세요");
+    }
+
+    /* ── PDF 저장 (캔버스 → 이미지로 저장, iOS는 롱프레스로 저장 안내) ── */
+    async function savePdf() {
+        if (typeof html2canvas === 'undefined') {
+            showToast("라이브러리 로드 중입니다. 잠시 후 다시 시도하세요.");
+            return;
+        }
+
+        var btn = document.querySelector('.b-pdf');
+        btn.textContent = '⏳ 생성 중...';
+        btn.disabled = true;
+
+        try {
+            var area = document.getElementById('capture_area');
+            var canvas = await html2canvas(area, { scale: 2, useCORS: true, logging: false });
+
+            // iOS Safari는 jsPDF 다운로드가 안 될 수 있으므로 이미지로 직접 제공
+            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            if (isIOS) {
+                // iOS: 새 탭에 이미지 열기 → 롱프레스로 저장
+                var imgData = canvas.toDataURL('image/png');
+                var win = window.open('', '_blank');
+                if (win) {
+                    win.document.write('<html><body style="margin:0;background:#000;">'
+                        + '<p style="color:#fff;font-family:sans-serif;text-align:center;padding:10px;">이미지를 길게 눌러 저장하세요</p>'
+                        + '<img src="' + imgData + '" style="width:100%;display:block;">'
+                        + '</body></html>');
+                } else {
+                    showToast("팝업을 허용하거나 복사 버튼을 이용해 주세요.");
+                }
+            } else {
+                // 일반: PDF 다운로드
+                var imgData = canvas.toDataURL('image/png');
+                var { jsPDF } = window.jspdf;
+                var pdf = new jsPDF('p', 'mm', 'a4');
+                var w = pdf.internal.pageSize.getWidth() - 20;
+                var h = (canvas.height * w) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 10, 10, w, h);
+                pdf.save('서류가이드.pdf');
+            }
+        } catch(err) {
+            showToast("저장 실패: " + err.message);
+        }
+
+        btn.textContent = '💾 PDF 저장 (이미지)';
+        btn.disabled = false;
+    }
+</script>
+
+</body>
+</html>
