@@ -278,6 +278,19 @@
     /* ── 텍스트 복사 (iOS 호환) ── */
     function copyTxt() {
         var res = document.getElementById('res_table').innerText;
+
+        // 신탁 링크 URL을 텍스트에 삽입 (중복 방지를 위해 replaceAll 대신 한 번만 치환)
+        var links = document.querySelectorAll('#res_table .tax-note a');
+        var replaced = false;
+        links.forEach(function(a) {
+            if (!replaced) {
+                res = res.replace('상세가이드 보기', '상세가이드 보기(' + a.href + ')');
+                replaced = true;
+            } else {
+                res = res.replace('상세가이드 보기', '상세가이드 보기(' + a.href + ')');
+            }
+        });
+
         var text = "[주택연금 필요서류 결과]\n" + res;
 
         // navigator.clipboard (iOS 13.4+, HTTPS 필요)
