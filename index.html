@@ -136,7 +136,7 @@
     </div>
 
     <div class="res-sec" id="capture_area">
-        <div id="summary_box" style="display:none;"></div>
+        <div id="summary_box" style="font-size:11px; color:#666; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;"></div>
         <table id="res_table">
             <thead>
                 <tr><th class="cat">구분</th><th>신청인</th><th id="th_spouse">배우자</th></tr>
@@ -245,10 +245,14 @@
         render('spouse_etc',    sp_e);
 
         var sumArr = [
-            "배우자:" + q.spouse,
+            "배우자:" + (q.spouse === 'Y' ? '있음' : '없음'),
+            "배우자주소:" + (q.addr === 'Y' ? '동일' : '다름'),
+            "공동소유:" + (q.owner === 'Y' ? '공동' : '단독'),
             "방식:" + (q.trust === 'Y' ? '신탁' : '저당'),
-            "우대형:" + q.special,
-            "오피스텔:" + q.office
+            "우대형:" + (q.special === 'Y' ? '해당' : '없음'),
+            "오피스텔:" + (q.office === 'Y' ? '해당' : '없음'),
+            "대출상환:" + (q.loan === 'Y' ? '필요' : '불필요'),
+            "등기권리증:" + (q.doc === 'Y' ? '있음' : '없음')
         ];
         document.getElementById('summary_box').innerText = sumArr.join(' / ');
     }
