@@ -60,6 +60,38 @@
         .b-copy { background: #555; color: #fff; }
         .b-pdf  { background: #004b93; color: #fff; }
 
+        .link-box {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-top: 5px solid #f4f7f9;
+        }
+        .link-title {
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        .b-link {
+            display: block;
+            padding: 14px 15px;
+            border-radius: 5px;
+            border: 2px solid #004b93;
+            background: #fff;
+            color: #004b93;
+            font-weight: bold;
+            font-size: 14px;
+            text-decoration: none;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.15s, color 0.15s;
+        }
+        .b-link:active {
+            background: #004b93;
+            color: #fff;
+        }
+
         /* 토스트 알림 */
         #toast {
             display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -166,6 +198,15 @@
     <div class="btn-box">
         <button class="b-copy" onclick="copyTxt()">📋 결과 복사하기</button>
         <button class="b-pdf"  onclick="savePdf()">💾 PDF 저장 (이미지)</button>
+    </div>
+
+    <div class="link-box">
+        <div class="link-title">🔗 주택금융공사 바로가기</div>
+        <a class="b-link" href="https://hf.go.kr/ko/sub03/sub03_02_02.do" target="_blank" rel="noopener">📊 예상연금조회</a>
+        <a class="b-link" href="https://hf.go.kr/ko/sub04/sub04_10_03.do?mode=download&articleNo=800&attachNo=95062" target="_blank" rel="noopener">📄 주택연금신청서</a>
+        <a class="b-link" href="https://hf.go.kr/ko/sub04/sub04_10_03.do?mode=download&articleNo=599843&attachNo=95951" target="_blank" rel="noopener">📋 주택연금 설명서 및 체크리스트 (신탁방식)</a>
+        <a class="b-link" href="https://hf.go.kr/ko/sub04/sub04_10_03.do?mode=download&articleNo=599842&attachNo=95950" target="_blank" rel="noopener">📋 주택연금 설명서 및 체크리스트 (저당권방식)</a>
+        <a class="b-link" href="https://hf.go.kr/ko/sub03/sub03_01_02_02.do" target="_blank" rel="noopener">⚖️ 신탁방식과 저당권방식 비교</a>
     </div>
 </div>
 
