@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주택연금 신청서</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nanum Gothic', '맑은 고딕', 'Malgun Gothic', sans-serif;
+    font-size: 9pt;
+    background: #d0d0d0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  /* 인쇄 버튼 영역 */
+  .print-toolbar {
+    width: 210mm;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .btn {
+    padding: 7px 18px;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 9pt;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .btn-print { background: #1a3a6b; color: #fff; }
+  .btn-reset { background: #888; color: #fff; }
+  .btn:hover { opacity: 0.85; }
+
+  /* A4 페이지 */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    padding: 15mm 15mm 15mm 20mm;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+
+  /* 제목 */
+  .doc-title {
+    text-align: center;
+    font-size: 16pt;
+    font-weight: 800;
+    letter-spacing: 6px;
+    margin-bottom: 3mm;
+    padding-bottom: 2mm;
+  }
+  .doc-to {
+    text-align: right;
+    font-size: 9pt;
+    margin-bottom: 4mm;
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* 섹션 헤더 */
+  .section {
+    margin-bottom: 2.5mm;
+  }
+  .section-title {
+    background: #1a3a6b;
+    color: #fff;
+    font-weight: 700;
+    font-size: 9pt;
+    padding: 3px 6px;
+    margin-bottom: 0;
+    letter-spacing: 1px;
+  }
+
+  /* 테이블 공통 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+  th, td {
+    border: 1px solid #555;
+    padding: 3px 5px;
+    vertical-align: middle;
+    line-height: 1.4;
+  }
+  .label {
+    background: #e8edf5;
+    font-weight: 700;
+    white-space: nowrap;
+    text-align: center;
+    width: auto;
+  }
+  .label-sm { width: 18mm; }
+  .label-md { width: 22mm; }
+
+  /* 입력 필드 공통 */
+  input[type="text"], input[type="date"] {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-family: inherit;
+    font-size: 8.5pt;
+    background: transparent;
+    padding: 1px 2px;
+    color: #111;
+  }
+  input[type="text"]:focus, input[type="date"]:focus {
+    background: #fffbe6;
+    border-radius: 2px;
+  }
+  select {
+    border: 1px solid #aaa;
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: 8pt;
+    background: #fff;
+    padding: 1px 2px;
+    color: #111;
+    outline: none;
+    width: 100%;
+    cursor: pointer;
+  }
+  select:focus { background: #fffbe6; }
+
+  /* 라디오/체크박스 그룹 */
+  .radio-group, .check-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 1px 2px;
+  }
+  .radio-group label, .check-group label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 8.5pt;
+  }
+  input[type="radio"], input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #1a3a6b;
+  }
+
+  /* 체크박스 + 입력 콤보 */
+  .check-input-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .check-input-row input[type="text"] {
+    width: 70px;
+    border-bottom: 1px solid #aaa;
+    font-size: 8pt;
+  }
+
+  /* 서명 영역 */
+  .sign-section {
+    margin-top: 6mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2mm;
+    font-size: 8.5pt;
+  }
+  .sign-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sign-date input[type="text"] {
+    width: 28px;
+    border-bottom: 1px solid #555;
+    text-align: center;
+    background: transparent;
+  }
+  .sign-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sign-box {
+    display: inline-block;
+    width: 20mm;
+    height: 7mm;
+    border: 1px solid #555;
+    text-align: center;
+    line-height: 7mm;
+    font-size: 8pt;
+    color: #888;
+  }
+
+  /* 인출한도 테이블 */
+  .inchul-table td { padding: 1.5px 4px; }
+  .inchul-label {
+    background: #e8edf5;
+    font-weight: 700;
+    font-size: 8pt;
+    width: 38mm;
+    text-align: left;
+    padding-left: 4px;
+  }
+  .inchul-input input[type="text"] {
+    width: 100%;
+    border-bottom: 1px solid #aaa;
+  }
+
+  /* 지급방식 / 인출한도 나란히 */
+  .pay-inchul-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid #555;
+    border-top: 1px solid #555;
+    margin-top: -1px;
+  }
+  .pay-col, .inchul-col {
+    padding: 4px 6px;
+  }
+  .pay-col { border-right: 1px solid #555; }
+  .col-header {
+    font-weight: 700;
+    background: #e8edf5;
+    text-align: center;
+    font-size: 8.5pt;
+    padding: 3px;
+    border-bottom: 1px solid #555;
+    margin: -4px -6px 4px -6px;
+  }
+  .pay-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 3px;
+    font-size: 8.5pt;
+  }
+  .pay-item label { white-space: nowrap; width: 76px; min-width: 76px; display: flex; align-items: center; gap: 3px; }
+  .pay-item select { flex: 1; }
+  .pay-item .pay-select-wrap { flex: 1; display: flex; align-items: center; }
+  .pay-item .pay-select-wrap::before { content: '('; font-size: 8pt; color: #555; margin-right: 1px; }
+  .pay-item .pay-select-wrap::after  { content: ')'; font-size: 8pt; color: #555; margin-left: 1px; }
+  .pay-item .pay-select-wrap select  { flex: 1; }
+  .inchul-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+    font-size: 8.5pt;
+  }
+  .inchul-item .i-label { white-space: nowrap; min-width: 74px; font-size: 8pt; }
+  .inchul-item input[type="text"] { flex: 1; border-bottom: 1px solid #aaa; min-width: 0; }
+
+  .other-input { display: flex; align-items: center; gap: 2px; }
+  .other-input input.other-name { width: 50px; border-bottom: 1px solid #aaa; }
+  .other-input input.other-val  { flex: 1; border-bottom: 1px solid #aaa; }
+
+  /* 금융거래 테이블 */
+  .finance-th {
+    background: #e8edf5;
+    font-weight: 700;
+    text-align: center;
+    font-size: 8pt;
+  }
+
+  /* 하단 저당권 행 */
+  .bottom-row { display: flex; align-items: center; gap: 4px; }
+  .bottom-row label { white-space: nowrap; font-weight: 700; }
+
+  /* 저당권 행 - 한 줄 강제, 라벨 폰트 축소 */
+  .mortgage-row .label { font-size: 7.6pt; padding: 2px 1px; letter-spacing: -0.3px; }
+
+  /* 입력값 정렬 헬퍼 */
+  input.align-left   { text-align: left !important; }
+  input.align-right  { text-align: right !important; }
+  input.align-center { text-align: center !important; }
+
+  /* 서명 블록 */
+  .sign-block {
+    margin-top: 6mm;
+    font-size: 8.5pt;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5mm;
+  }
+  .sign-date-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+  }
+  .sign-rows {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2mm;
+  }
+  .sign-rows .sign-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 145mm; /* 전체 행 너비 고정 → 콜론 위치 일치 */
+  }
+  .sign-rows .sign-row .sign-label {
+    display: inline-block;
+    width: 44mm;
+    text-align: right;
+    padding-right: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* @media print */
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    body {
+      background: none;
+      padding: 0;
+      color: #000 !important;
+      font-size: 9pt !important;
+    }
+    .print-toolbar { display: none; }
+    .page {
+      box-shadow: none;
+      margin: 0;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 15mm 15mm 15mm 20mm;
+    }
+    /* 제목/귀중 */
+    .doc-title {
+      color: #000 !important;
+      font-size: 16pt !important;
+    }
+    .doc-to {
+      color: #000 !important;
+      font-size: 9pt !important;
+      font-weight: 700 !important;
+    }
+    /* 섹션 헤더 배경/글자 강제 */
+    .section-title {
+      background: #1a3a6b !important;
+      color: #fff !important;
+    }
+    /* 라벨 셀 */
+    .label, .finance-th {
+      background: #e8edf5 !important;
+      color: #000 !important;
+    }
+    /* 테이블 테두리/글자 */
+    th, td {
+      border: 1px solid #444 !important;
+      color: #000 !important;
+    }
+    /* 입력 필드 */
+    input[type="text"] {
+      color: #000 !important;
+      background: transparent !important;
+      border: none !important;
+    }
+    input[type="text"]:focus { background: transparent !important; }
+    /* select - 선택된 값만 텍스트로 표시 */
+    select {
+      color: #000 !important;
+      background: transparent !important;
+      border: none !important;
+      appearance: none !important;
+      -webkit-appearance: none !important;
+    }
+    /* 라디오/체크박스 레이블 */
+    .radio-group label, .check-group label,
+    .sign-block span, .sign-block label,
+    .sign-rows .sign-row span,
+    .pay-item label, .pay-item span,
+    .inchul-item .i-label {
+      color: #000 !important;
+    }
+    /* 지급방식/인출한도 영역 */
+    .pay-inchul-wrap {
+      border: 1px solid #444 !important;
+    }
+    .pay-col { border-right: 1px solid #444 !important; }
+    .col-header {
+      background: #e8edf5 !important;
+      color: #000 !important;
+      border-bottom: 1px solid #444 !important;
+    }
+    /* 저당권 행 라벨 */
+    .mortgage-row .label {
+      background: #e8edf5 !important;
+      color: #000 !important;
+    }
+    /* 서류 목록 */
+    #doc-list-section .section-title {
+      background: #1a3a6b !important;
+      color: #fff !important;
+    }
+    #doc-list-table th { background: #e8edf5 !important; color: #000 !important; }
+    #doc-list-table td, #doc-list-table li { color: #000 !important; }
+    /* 신탁 각주 */
+    #doc-trust-note { color: #5a3000 !important; background: #fffbf0 !important; border-left: 3px solid #c8900a !important; }
+    /* 기초연금 단서 */
+    #doc-app-center li span,
+    #doc-sp-center li span { color: #5a3000 !important; }
+    /* (인) 박스 */
+    .sign-rows .sign-row span[style*="border:1px solid #555"] {
+      color: #555 !important;
+    }
+    /* QR 이미지 색상 보장 */
+    img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-toolbar">
+  <button class="btn btn-reset" onclick="resetForm()">초기화</button>
+  <button class="btn btn-print" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+</div>
+
+<div class="page">
+
+  <!-- 제목 -->
+  <div class="doc-title">주 택 연 금 신 청 서</div>
+  <div class="doc-to">한국주택금융공사 귀중</div>
+
+  <!-- 1. 보증신청인 -->
+  <div class="section">
+    <div class="section-title">1. 보증신청인</div>
+    <table>
+      <colgroup>
+        <col style="width:14mm">
+        <col style="width:16mm">
+        <col>
+        <col style="width:20mm">
+        <col>
+        <col style="width:14mm">
+        <col>
+      </colgroup>
+      <tr>
+        <td class="label" rowspan="2">신청인</td>
+        <td class="label">성 명</td>
+        <td><input type="text" id="app_name" placeholder="성명 입력" class="align-center"></td>
+        <td class="label">주민등록번호</td>
+        <td><input type="text" id="app_ssn" placeholder="000000-0000000" class="align-center"></td>
+        <td class="label">연락처</td>
+        <td><input type="text" id="app_tel" placeholder="010-0000-0000" class="align-center"></td>
+      </tr>
+      <tr>
+        <td class="label">주 소</td>
+        <td colspan="5">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="text" id="app_addr" placeholder="주소 입력" style="flex:1;" class="align-left">
+            <label style="display:flex;align-items:center;gap:3px;white-space:nowrap;font-size:8pt;">
+              <input type="checkbox" id="app_addr_same" onchange="syncAddr('app')"> 담보주택과 같음
+            </label>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="label" rowspan="2">배우자</td>
+        <td class="label">성 명</td>
+        <td><input type="text" id="sp_name" placeholder="성명 입력" class="align-center"></td>
+        <td class="label">주민등록번호</td>
+        <td><input type="text" id="sp_ssn" placeholder="000000-0000000" class="align-center"></td>
+        <td class="label">연락처</td>
+        <td><input type="text" id="sp_tel" placeholder="010-0000-0000" class="align-center"></td>
+      </tr>
+      <tr>
+        <td class="label">주 소</td>
+        <td colspan="5">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="text" id="sp_addr" placeholder="주소 입력" style="flex:1;" class="align-left">
+            <label style="display:flex;align-items:center;gap:3px;white-space:nowrap;font-size:8pt;">
+              <input type="checkbox" id="sp_addr_same" onchange="syncAddr('sp')"> 담보주택과 같음
+            </label>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 2. 보증대상주택 -->
+  <div class="section">
+    <div class="section-title">2. 보증대상주택</div>
+    <table>
+      <colgroup>
+        <col style="width:16mm">
+        <col>
+      </colgroup>
+      <tr>
+        <td class="label">주택주소</td>
+        <td><input type="text" id="house_addr" placeholder="담보주택 주소 입력" class="align-left"></td>
+      </tr>
+    </table>
+    <table style="border-top:none;">
+      <colgroup>
+        <col style="width:16mm">   <!-- 주택유형 라벨 -->
+        <col style="width:36mm">   <!-- 주택유형 드롭다운 -->
+        <col style="width:16mm">   <!-- 소유구분 라벨 -->
+        <col style="width:22mm">   <!-- 소유구분 라디오 -->
+        <col style="width:26mm">   <!-- 면적 라벨 -->
+        <col>                      <!-- 면적 입력 -->
+      </colgroup>
+      <tr>
+        <td class="label" style="border-top:none;">주택유형</td>
+        <td style="border-top:none;">
+          <select id="house_type" style="width:100%;">
+            <option value="">-- 선택 --</option>
+            <option>아파트</option>
+            <option>단독주택</option>
+            <option>연립/다세대</option>
+            <option>주거용오피스텔</option>
+            <option>노인복지주택</option>
+          </select>
+        </td>
+        <td class="label" style="border-top:none;">소유구분</td>
+        <td style="border-top:none;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap;">
+            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;cursor:pointer;white-space:nowrap;"><input type="radio" name="ownership" value="단독"> 단독</label>
+            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;cursor:pointer;white-space:nowrap;"><input type="radio" name="ownership" value="공동"> 공동</label>
+          </div>
+        </td>
+        <td class="label" style="border-top:none;">면적(대지/건물)</td>
+        <td style="border-top:none;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <input type="text" id="area_land" placeholder="대지(㎡)" style="flex:1;border-bottom:1px solid #aaa;min-width:0;" class="align-center">
+            <span style="white-space:nowrap;">/</span>
+            <input type="text" id="area_bldg" placeholder="건물(㎡)" style="flex:1;border-bottom:1px solid #aaa;min-width:0;" class="align-center">
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 3. 보증신청내용 -->
+  <div class="section">
+    <div class="section-title">3. 보증신청내용 &nbsp;<span style="font-weight:400;font-size:8pt;">* 주채무과목 이외에는 추후 보증서발급으로 확정 예정</span></div>
+    <table>
+      <colgroup>
+        <col style="width:20mm">
+        <col>
+        <col style="width:16mm">
+        <col>
+      </colgroup>
+      <tr>
+        <td class="label">주채무과목</td>
+        <td style="text-align:center;">주택담보노후연금대출</td>
+        <td class="label">대출금리</td>
+        <td style="text-align:center;">COFIX(신규취급액) + 0.85%</td>
+      </tr>
+      <tr>
+        <td class="label">주채무금액</td>
+        <td><input type="text" id="loan_amt" placeholder="금액 입력 (원)" class="align-center"></td>
+        <td class="label">보증금액</td>
+        <td style="text-align:center;">주채무와 같음</td>
+      </tr>
+      <tr>
+        <td class="label">주채무기한</td>
+        <td><input type="text" id="loan_term" placeholder="기한 입력" class="align-center"></td>
+        <td class="label">보증기한</td>
+        <td style="text-align:center;">주채무와 같음</td>
+      </tr>
+    </table>
+
+    <!-- 지급방식 + 인출한도 -->
+    <div class="pay-inchul-wrap">
+      <!-- 지급방식 -->
+      <div class="pay-col">
+        <div class="col-header">지급방식 선택</div>
+        <div class="pay-item">
+          <label><input type="checkbox" name="pay_type" value="종신지급"> 종신지급</label>
+          <div class="pay-select-wrap">
+            <select id="pay_jongsin">
+              <option value="">-- 선택 --</option>
+              <option>정액형</option>
+              <option>초기증액형(3년)</option>
+              <option>초기증액형(5년)</option>
+              <option>초기증액형(7년)</option>
+              <option>초기증액형(10년)</option>
+              <option>정기증가형</option>
+            </select>
+          </div>
+        </div>
+        <div class="pay-item">
+          <label><input type="checkbox" name="pay_type" value="종신혼합"> 종신혼합</label>
+          <div class="pay-select-wrap">
+            <select id="pay_honhab">
+              <option value="">-- 선택 --</option>
+              <option>정액형</option>
+              <option>초기증액형(3년)</option>
+              <option>초기증액형(5년)</option>
+              <option>초기증액형(7년)</option>
+              <option>초기증액형(10년)</option>
+              <option>정기증가형</option>
+            </select>
+          </div>
+        </div>
+        <div class="pay-item">
+          <label><input type="checkbox" name="pay_type" value="확정혼합"> 확정혼합</label>
+          <div class="pay-select-wrap">
+            <select id="pay_hwakjung">
+              <option value="">-- 선택 --</option>
+              <option>정액형(10년)</option>
+              <option>정액형(15년)</option>
+              <option>정액형(20년)</option>
+              <option>정액형(25년)</option>
+              <option>정액형(30년)</option>
+            </select>
+          </div>
+        </div>
+        <div class="pay-item">
+          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="대출상환_정액형"> 대출상환</label>
+          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
+        </div>
+        <div class="pay-item">
+          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="대출상환우대_정액형"> 대출상환우대</label>
+          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
+        </div>
+        <div class="pay-item">
+          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="우대지급_정액형"> 우대지급</label>
+          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
+        </div>
+        <div class="pay-item">
+          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="우대혼합_정액형"> 우대혼합</label>
+          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
+        </div>
+      </div>
+      <!-- 인출한도 -->
+      <div class="inchul-col">
+        <div class="col-header">인출한도 금액 (원)</div>
+        <div class="inchul-item">
+          <span class="i-label">소상공인대출상환</span>
+          <input type="text" id="ic1" placeholder="금액" class="align-right">
+        </div>
+        <div class="inchul-item">
+          <span class="i-label">재건축분담금납부</span>
+          <input type="text" id="ic2" placeholder="금액" class="align-right">
+        </div>
+        <div class="inchul-item">
+          <span class="i-label">선순위대출상환</span>
+          <input type="text" id="ic3" placeholder="금액" class="align-right">
+        </div>
+        <div class="inchul-item">
+          <span class="i-label">임차보증금반환</span>
+          <input type="text" id="ic4" placeholder="금액" class="align-right">
+        </div>
+        <div class="inchul-item">
+          <span class="i-label">확정기간형의무</span>
+          <input type="text" id="ic5" placeholder="금액" class="align-right">
+        </div>
+        <div class="inchul-item">
+          <span class="i-label">감정료/설정비용</span>
+          <input type="text" id="ic6" placeholder="금액" class="align-right">
+        </div>
+        <div class="inchul-item">
+          <span class="i-label">
+            기타 (<input type="text" id="ic_other_name" placeholder="내용" style="width:36px;border-bottom:1px solid #aaa;font-size:8pt;" class="align-center">)
+          </span>
+          <input type="text" id="ic7" placeholder="금액" class="align-right">
+        </div>
+      </div>
+    </div>
+
+    <!-- 저당권/연금전용계좌/담보제공방식/임차보증금 -->
+    <table style="border-top:none;margin-top:0;" class="mortgage-row">
+      <colgroup>
+        <col style="width:19mm"><!-- 저당권/전세권 라벨 -->
+        <col style="width:30mm"><!-- 저당권/전세권 입력 -->
+        <col style="width:17mm"><!-- 임차보증금 라벨 -->
+        <col style="width:14mm"><!-- 임차보증금 유/무 -->
+        <col style="width:17mm"><!-- 연금전용계좌 라벨 -->
+        <col style="width:12mm"><!-- 연금전용계좌 여/부 -->
+        <col style="width:17mm"><!-- 담보제공방식 라벨 -->
+        <col>                   <!-- 담보제공방식 선택 -->
+      </colgroup>
+      <tr>
+        <td class="label">저당권/전세권</td>
+        <td><input type="text" id="mortgage" placeholder="내용 입력" class="align-center"></td>
+        <td class="label">임차보증금</td>
+        <td style="padding:1px 2px;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;">
+            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="lease" value="유"> 유</label>
+            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="lease" value="무"> 무</label>
+          </div>
+        </td>
+        <td class="label">연금전용계좌</td>
+        <td style="padding:1px 2px;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;">
+            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="pension_acct" value="여"> 여</label>
+            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="pension_acct" value="부"> 부</label>
+          </div>
+        </td>
+        <td class="label">담보제공방식</td>
+        <td>
+          <select id="collateral_type" style="width:100%;">
+            <option value="">-- 선택 --</option>
+            <option>저당권</option>
+            <option>신탁(포괄)</option>
+            <option>신탁(개별)</option>
+          </select>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 4. 금융거래상황 -->
+  <div class="section">
+    <div class="section-title">4. 금융거래상황</div>
+    <table>
+      <colgroup>
+        <col style="width:14mm">
+        <col style="width:38mm">
+        <col style="width:35mm">
+        <col>
+        <col>
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="finance-th">구 분</th>
+          <th class="finance-th">대출잔액 합계</th>
+          <th class="finance-th">담보구분</th>
+          <th class="finance-th">현재 연체유무</th>
+          <th class="finance-th">현재 신용관리정보</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label" style="text-align:center;">신청인</td>
+          <td><input type="text" id="fin_balance" placeholder="잔액 (원)" class="align-right"></td>
+          <td><input type="text" id="fin_collateral" placeholder="담보구분 입력" class="align-center"></td>
+          <td>
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;cursor:pointer;white-space:nowrap;"><input type="radio" name="fin_overdue" value="유"> 유</label>
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;cursor:pointer;white-space:nowrap;"><input type="radio" name="fin_overdue" value="무"> 무</label>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;cursor:pointer;white-space:nowrap;"><input type="radio" name="fin_credit" value="유"> 유</label>
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;cursor:pointer;white-space:nowrap;"><input type="radio" name="fin_credit" value="무"> 무</label>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 서명 + QR -->
+  <div style="display:flex;align-items:flex-start;gap:0;margin-top:6mm;">
+    <!-- QR 이미지: 보증신청인 겸 소유자 행 좌측 여백 -->
+    <div style="flex-shrink:0;width:26mm;display:flex;align-items:flex-start;padding-top:9mm;">
+      <img src="data:image/jpeg;base64,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" alt="맞춤형 주택연금 서류" style="width:24mm;height:24mm;object-fit:contain;">
+    </div>
+    <!-- 서명 블록 -->
+    <div class="sign-block" style="flex:1;margin-top:0;">
+    <div class="sign-date-row">
+      <span>20</span>
+      <input type="text" id="sign_year" placeholder="YY" class="align-center" style="width:22px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
+      <span>년</span>
+      <input type="text" id="sign_month" placeholder="MM" class="align-center" style="width:18px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
+      <span>월</span>
+      <input type="text" id="sign_day" placeholder="DD" class="align-center" style="width:18px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
+      <span>일</span>
+    </div>
+    <!-- 서명행: 우측 정렬 -->
+    <div class="sign-rows">
+      <div class="sign-row">
+        <span class="sign-label">보증신청인 겸 소유자 :</span>
+        <input type="text" id="sign_owner" placeholder="성명" class="align-left" style="flex:1;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;">
+        <span style="border:1px solid #555;padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
+      </div>
+      <div class="sign-row">
+        <span class="sign-label">금융기관 :</span>
+        <input type="text" id="sign_bank" placeholder="기관명" class="align-center" style="flex:1;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;">
+        <input type="text" id="sign_branch" placeholder="지점명" class="align-center" style="width:25mm;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;margin-left:4px;">
+        <span style="white-space:nowrap;margin-left:2px;">지점장</span>
+        <span style="border:1px solid #555;padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
+      </div>
+      <div class="sign-row">
+        <span class="sign-label">금융기관 담당자 :</span>
+        <input type="text" id="sign_manager" placeholder="담당자 직위/성명/연락처" class="align-left" style="flex:1;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;">
+      </div>
+    </div>
+    </div>
+  </div><!-- /서명+QR 래퍼 -->
+
+  <!-- 첨부 서류 목록 -->
+  <div class="section" id="doc-list-section" style="margin-top:6mm;">
+    <div class="section-title">※ 첨부 서류 목록</div>
+    <table id="doc-list-table">
+      <colgroup>
+        <col style="width:20mm">
+        <col>
+        <col id="col-spouse" style="width:80mm">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="finance-th">구분</th>
+          <th class="finance-th">신청인</th>
+          <th class="finance-th" id="th-doc-spouse">배우자</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label" style="text-align:center;font-size:8pt;">주민센터<br>발급</td>
+          <td style="vertical-align:top;padding:3px 5px;">
+            <ul id="doc-app-center" style="padding-left:14px;margin:0;font-size:8pt;line-height:1.7;"></ul>
+          </td>
+          <td id="td-doc-spouse-center" style="vertical-align:top;padding:3px 5px;">
+            <ul id="doc-sp-center" style="padding-left:14px;margin:0;font-size:8pt;line-height:1.7;"></ul>
+          </td>
+        </tr>
+        <tr>
+          <td class="label" style="text-align:center;font-size:8pt;">기타</td>
+          <td style="vertical-align:top;padding:3px 5px;">
+            <ul id="doc-app-etc" style="padding-left:14px;margin:0;font-size:8pt;line-height:1.7;"></ul>
+          </td>
+          <td id="td-doc-spouse-etc" style="vertical-align:top;padding:3px 5px;">
+            <ul id="doc-sp-etc" style="padding-left:14px;margin:0;font-size:8pt;line-height:1.7;"></ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- .page -->
+
+<script>
+function syncAddr(who) {
+  const checkbox = document.getElementById(who + '_addr_same');
+  const addrInput = document.getElementById(who + '_addr');
+  const houseAddr = document.getElementById('house_addr').value;
+  if (checkbox.checked) {
+    addrInput.value = houseAddr || '담보주택과 같음';
+    addrInput.readOnly = true;
+    addrInput.style.color = '#888';
+  } else {
+    addrInput.value = '';
+    addrInput.readOnly = false;
+    addrInput.style.color = '#111';
+  }
+}
+
+function resetForm() {
+  if (!confirm('모든 입력 내용을 초기화하시겠습니까?')) return;
+  document.querySelectorAll('input[type="text"]').forEach(el => {
+    el.value = '';
+    el.readOnly = false;
+    el.style.color = '#111';
+  });
+  document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
+  document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+  document.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+}
+
+// 담보주택 주소 변경 시 "같음" 체크된 항목 자동 갱신
+document.getElementById('house_addr').addEventListener('input', function() {
+  ['app', 'sp'].forEach(who => {
+    const cb = document.getElementById(who + '_addr_same');
+    if (cb && cb.checked) syncAddr(who);
+  });
+});
+
+/* ── 첨부 서류 목록 자동 생성 ── */
+function updateDocList() {
+  // 1. 배우자 유무: 배우자 성명 입력 여부
+  const spName    = (document.getElementById('sp_name')?.value || '').trim();
+  const hasSpouse = spName.length > 0;
+
+  // 2. 배우자 주소 동일 여부
+  const appAddr = (document.getElementById('app_addr')?.value || '').trim();
+  const spAddr  = (document.getElementById('sp_addr')?.value || '').trim();
+  const spSame  = document.getElementById('sp_addr_same')?.checked;
+  // 체크박스가 체크돼 있거나, 두 주소가 같으면 동일 주소로 판단
+  const addrSame = spSame || (appAddr.length > 0 && appAddr === spAddr);
+
+  // 3. 공동소유 여부
+  const ownerVal  = document.querySelector('input[name="ownership"]:checked')?.value || '';
+  const isJoint   = ownerVal === '공동';
+
+  // 4. 신탁방식 여부: 담보제공방식이 신탁(포괄) 또는 신탁(개별)
+  const collateral = document.getElementById('collateral_type')?.value || '';
+  const isTrust    = collateral.includes('신탁');
+
+  // 5. 우대형: 항상 해당으로 처리 (표시 시 단서 추가)
+  const isSpecial = true;
+
+  // 6. 오피스텔 여부
+  const houseType = document.getElementById('house_type')?.value || '';
+  const isOffice  = houseType === '주거용오피스텔';
+
+  // 7. 대출상환 일시금: 선순위대출상환 금액 > 0
+  const ic3Val  = parseFloat((document.getElementById('ic3')?.value || '').replace(/[^0-9.]/g, '')) || 0;
+  const hasLoan = ic3Val > 0;
+
+  // 8. 등기권리증: 항상 포함 (단서 추가)
+
+  /* 신청인 주민센터 서류 */
+  const appCenter = [
+    '신청인 주민등본 2부',
+    '신청인 주민초본 1부 (전 주소 포함)',
+    '전입세대확인서 1부',
+    '신청인 가족관계증명서(상세) 1부',
+    '신청인 인감증명서 2부',
+  ];
+  if (isTrust) appCenter.push('신청인 지방세 납세증명서 ★');
+  if (isSpecial) appCenter.push('기초연금수급자격확인서 1부 <span style="color:#b06000;font-size:7.5pt;">(2.5억원 이하 1주택자이고 기초연금수급자에 한함)</span>');
+  if (isOffice) appCenter.push('지방세 목별 납세증명서 1부');
+
+  /* 신청인 기타 서류 */
+  const appEtc = [
+    '신청인 인감도장 및 신분증',
+  ];
+  if (hasLoan) appEtc.push('대출잔액증명서 1부');
+  appEtc.push('등기권리증 원본 <span style="color:#555;font-size:7.5pt;">(소지한 경우에 한함)</span>');
+
+  /* 배우자 주민센터 서류 */
+  const spCenter = [];
+  if (hasSpouse) {
+    spCenter.push('배우자 가족관계증명서(상세) 1부');
+    spCenter.push('배우자 인감증명서 ' + (isJoint ? '2부' : '1부'));
+    if (!addrSame) spCenter.push('배우자 주민등본 1부');
+    if (isJoint)   spCenter.push('배우자 주민초본 1부 (전 주소 포함)');
+    if (isTrust && isJoint) spCenter.push('배우자 지방세 납세증명서 ★');
+  }
+
+  /* 배우자 기타 서류 */
+  const spEtc = hasSpouse ? ['배우자 인감도장 및 신분증'] : [];
+
+  /* 렌더링 */
+  function render(id, items) {
+    const ul = document.getElementById(id);
+    if (!ul) return;
+    ul.innerHTML = items.map(i => `<li>${i}</li>`).join('');
+  }
+  render('doc-app-center', appCenter);
+  render('doc-app-etc',    appEtc);
+  render('doc-sp-center',  spCenter);
+  render('doc-sp-etc',     spEtc);
+
+  /* 배우자 열 표시/숨김 */
+  const show = hasSpouse ? '' : 'none';
+  const thSp = document.getElementById('th-doc-spouse');
+  const tdSc = document.getElementById('td-doc-spouse-center');
+  const tdSe = document.getElementById('td-doc-spouse-etc');
+  const colSp = document.getElementById('col-spouse');
+  if (thSp)  thSp.style.display  = show;
+  if (tdSc)  tdSc.style.display  = show;
+  if (tdSe)  tdSe.style.display  = show;
+  if (colSp) colSp.style.display = show;
+
+  /* 신탁 주의 각주 */
+  let note = document.getElementById('doc-trust-note');
+  if (isTrust) {
+    if (!note) {
+      note = document.createElement('p');
+      note.id = 'doc-trust-note';
+      note.style.cssText = 'font-size:7.5pt;color:#b06000;margin-top:4px;padding:3px 5px;background:#fffbf0;border-left:3px solid #d99b10;line-height:1.6;';
+      document.getElementById('doc-list-section').appendChild(note);
+    }
+    note.innerHTML = '★ 지방세 납세증명서(신탁등기용) 발급 유의사항: ① 주민등록번호 전체 표시 ② 사용목적 「부동산 신탁등기」 체크 ③ 신탁부동산 표시란에 주택연금 가입 주택 주소지 표시';
+  } else {
+    if (note) note.remove();
+  }
+}
+
+/* 서류 목록에 영향을 주는 필드에 이벤트 연결 */
+function bindDocListEvents() {
+  const watchIds = ['sp_name','app_addr','sp_addr','ic3','house_type','collateral_type'];
+  watchIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateDocList);
+  });
+  // select는 change 이벤트
+  ['house_type','collateral_type'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateDocList);
+  });
+  // 라디오 (소유구분, 주소 체크박스)
+  document.querySelectorAll('input[name="ownership"]').forEach(el => el.addEventListener('change', updateDocList));
+  const spSameCb = document.getElementById('sp_addr_same');
+  if (spSameCb) spSameCb.addEventListener('change', updateDocList);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bindDocListEvents();
+  updateDocList();
+});
+// 혹시 DOMContentLoaded가 이미 지난 경우
+if (document.readyState !== 'loading') {
+  bindDocListEvents();
+  updateDocList();
+}
+</script>
+</body>
+</html>
