@@ -780,7 +780,7 @@
     <div class="sign-block" style="flex:1;margin-top:0;">
       <div class="sign-date-row">
         <span></span>
-        <input type="text" id="sign_year" placeholder="yyyy" class="align-right" style="width:18px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
+        <input type="text" id="sign_year" placeholder="yyyy" class="align-right" style="width:36px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
         <span>년</span>
         <input type="text" id="sign_month" placeholder="m" class="align-right" style="width:18px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
         <span>월</span>
@@ -982,7 +982,7 @@ function updateDocList() {
       note.style.cssText = 'font-size:7.5pt;color:#b06000;margin-top:4px;padding:3px 5px;background:#fffbf0;border-left:3px solid #d99b10;line-height:1.6;';
       document.getElementById('doc-list-section').appendChild(note);
     }
-    note.innerHTML = '★ 지방세 납세증명서(신탁등기용) 발급 요건: ① 주민등록번호 전체 표시 ② 사용목적 「부동산 신탁등기」 체크 ③ 신탁부동산 표시에 주택연금 담보주택 주소 표시';
+    note.innerHTML = '★ 신탁등기용 지방세 납세증명서 요건: ① 주민등록번호 전체 표시 ② 사용목적 「부동산 신탁등기」 체크 ③ 신탁부동산 표시에 담보주택 주소 표시';
   } else {
     if (note) note.remove();
   }
