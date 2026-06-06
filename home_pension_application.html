@@ -7,6 +7,10 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
 
+  @media print {
+    .no-print { display: none !important; }
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -769,7 +773,9 @@
       <div class="sign-rows">
         <div class="sign-row">
           <span class="sign-label">보증신청인 겸 소유자 :</span>
-          <input type="text" id="sign_owner" placeholder="" class="align-left" style="flex:1;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;" readonly>
+          <div style="flex:1;border-bottom:1px solid #555;display:flex;align-items:center;justify-content:center;min-height:18px;">
+            <span class="no-print" style="font-size:7.5pt;color:#c00080;white-space:nowrap;">✍ 손글씨로 작성 후 서명/날인</span>
+          </div>
           <span style="padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
         </div>
         <div class="sign-row">
