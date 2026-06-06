@@ -57,8 +57,8 @@
     font-weight: 800;
     font-family: '맑은 고딕', 'Malgun Gothic', sans-serif;
     letter-spacing: normal;
-    margin-bottom: 3mm;
-    padding-bottom: 2mm;
+    margin-bottom: 0mm;
+    padding-bottom: 0mm;
   }
   .doc-to {
     text-align: right;
@@ -217,19 +217,19 @@
     border-bottom: 1px solid #aaa;
   }
 
-  /* 지급방식 / 인출한도 나란히 */
-  .pay-inchul-wrap {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    border: 1px solid #555;
-    border-top: 1px solid #555;
+  /* 지급방식 / 인출한도 테이블 */
+  .pay-inchul-table {
+    border-top: none;
     margin-top: -1px;
+  }
+  .pay-inchul-table td {
+    border: 1px solid #555;
+    vertical-align: top;
+    padding: 0;
   }
   .pay-col, .inchul-col {
     padding: 4px 6px;
   }
-  .pay-col { border-right: 1px solid #555; }
   .col-header {
     font-weight: 700;
     background: #e8edf5;
@@ -255,12 +255,44 @@
   .inchul-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0;
     margin-bottom: 3px;
     font-size: 8.5pt;
   }
-  .inchul-item .i-label { white-space: nowrap; min-width: 74px; font-size: 8pt; }
-  .inchul-item input[type="text"] { flex: 1; border-bottom: 1px solid #aaa; min-width: 0; }
+  .inchul-item .i-label { white-space: nowrap; width: 50%; font-size: 8pt; flex-shrink: 0; }
+  .inchul-item .i-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #aaa;
+    min-width: 0;
+  }
+  .inchul-item .i-input-wrap input[type="text"] {
+    flex: 1;
+    border: none;
+    min-width: 0;
+    text-align: right;
+    margin-left: 0;
+    background: transparent;
+    outline: none;
+    font-family: inherit;
+    font-size: 8.5pt;
+    padding: 1px 2px;
+  }
+  .inchul-item .i-suffix { white-space: nowrap; font-size: 8pt; padding-left: 2px; flex-shrink: 0; }
+  /* 기타 라벨: 괄호 안 입력 밑줄만 */
+  .i-label-other { white-space: nowrap; width: 50%; font-size: 8pt; flex-shrink: 0; display: flex; align-items: center; gap: 0; }
+  .i-label-other input[type="text"] {
+    border: none;
+    border-bottom: 1px solid #aaa;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 8pt;
+    width: 52px;
+    text-align: center;
+    padding: 1px 1px;
+  }
 
   .other-input { display: flex; align-items: center; gap: 2px; }
   .other-input input.other-name { width: 50px; border-bottom: 1px solid #aaa; }
@@ -298,23 +330,25 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 4px;
+    gap: 0;
+    width: 100%;
   }
   .sign-rows {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: stretch;
     gap: 2mm;
+    width: 100%;
   }
   .sign-rows .sign-row {
     display: flex;
     align-items: center;
     gap: 0;
-    width: 145mm; /* 전체 행 너비 고정 → 콜론 위치 일치 */
+    width: 100%;
   }
   .sign-rows .sign-row .sign-label {
     display: inline-block;
-    width: 44mm;
+    width: 60%;
     text-align: right;
     padding-right: 4px;
     white-space: nowrap;
@@ -322,6 +356,10 @@
   }
 
   /* @media print */
+  @page {
+    size: A4;
+    margin: 0;
+  }
   @media print {
     * {
       -webkit-print-color-adjust: exact !important;
@@ -331,6 +369,7 @@
     body {
       background: none;
       padding: 0;
+      margin: 0;
       color: #000 !important;
       font-size: 9pt !important;
     }
@@ -339,7 +378,7 @@
       box-shadow: none;
       margin: 0;
       width: 210mm;
-      min-height: 297mm;
+      height: 297mm;
       max-height: 297mm;
       overflow: hidden;
       padding: 15mm 15mm 15mm 20mm;
@@ -400,10 +439,9 @@
       color: #000 !important;
     }
     /* 지급방식/인출한도 영역 */
-    .pay-inchul-wrap {
+    .pay-inchul-table td {
       border: 1px solid #444 !important;
     }
-    .pay-col { border-right: 1px solid #444 !important; }
     .col-header {
       background: #e8edf5 !important;
       color: #000 !important;
@@ -560,13 +598,23 @@
   <!-- 3. 보증신청내용 -->
   <div class="section">
     <div class="section-title">3. 보증신청내용 &nbsp;<span style="font-weight:400;font-size:8pt;">* 주채무과목 이외에는 추후 보증서발급으로 확정 예정</span></div>
-    <table>
+    <!--
+      8열 구조 (table-layout:fixed, 합계=175mm, 세로줄=col2/col3 경계=87.5mm)
+      col1=19mm  col2=68.5mm  col3=21.875mm  col4=21.875mm  col5=21.875mm  col6=21.875mm  col7=22mm  col8=21.875mm  → 8열
+      실제: col1=19, col2=68.5, col3~col6=각21.875(합87.5 오른쪽), col7,col8은 col3+col4, col5+col6에 대응
+      단순화: 4열(19+68.5+43.75+43.75=175)에서 col3,col4를 각 2분할
+      col1=19  col2=68.5  col3=22  col4=21.75  col5=22  col6=21.75  col7=22  col8=21.75  → 합=219 X
+      
+      최종 결정: 4열 유지, 하단 행의 임차보증금·연금전용계좌를 각 셀 안에서 border로 구분
+    -->
+    <table style="table-layout:fixed;">
       <colgroup>
-        <col style="width:20mm">
-        <col>
-        <col style="width:16mm">
-        <col>
+        <col style="width:10.86%">  <!-- col1: 19/175 -->
+        <col style="width:39.14%">  <!-- col2: 68.5/175, 세로줄=50% -->
+        <col style="width:25%">     <!-- col3: 43.75/175 -->
+        <col style="width:25%">     <!-- col4: 43.75/175 -->
       </colgroup>
+      <!-- 상단 3행 -->
       <tr>
         <td class="label">주채무과목</td>
         <td style="text-align:center;">주택담보노후연금대출</td>
@@ -585,144 +633,75 @@
         <td class="label">보증기한</td>
         <td style="text-align:center;">주채무와 같음</td>
       </tr>
-    </table>
-
-    <!-- 지급방식 + 인출한도 -->
-    <div class="pay-inchul-wrap">
-      <!-- 지급방식 -->
-      <div class="pay-col">
-        <div class="col-header">지급방식 선택</div>
-        <div class="pay-item">
-          <label><input type="checkbox" name="pay_type" value="종신지급"> 종신지급</label>
-          <div class="pay-select-wrap">
-            <select id="pay_jongsin">
-              <option value="">-- 선택 --</option>
-              <option>정액형</option>
-              <option>초기증액형(3년)</option>
-              <option>초기증액형(5년)</option>
-              <option>초기증액형(7년)</option>
-              <option>초기증액형(10년)</option>
-              <option>정기증가형</option>
-            </select>
-          </div>
-        </div>
-        <div class="pay-item">
-          <label><input type="checkbox" name="pay_type" value="종신혼합"> 종신혼합</label>
-          <div class="pay-select-wrap">
-            <select id="pay_honhab">
-              <option value="">-- 선택 --</option>
-              <option>정액형</option>
-              <option>초기증액형(3년)</option>
-              <option>초기증액형(5년)</option>
-              <option>초기증액형(7년)</option>
-              <option>초기증액형(10년)</option>
-              <option>정기증가형</option>
-            </select>
-          </div>
-        </div>
-        <div class="pay-item">
-          <label><input type="checkbox" name="pay_type" value="확정혼합"> 확정혼합</label>
-          <div class="pay-select-wrap">
-            <select id="pay_hwakjung">
-              <option value="">-- 선택 --</option>
-              <option>정액형(10년)</option>
-              <option>정액형(15년)</option>
-              <option>정액형(20년)</option>
-              <option>정액형(25년)</option>
-              <option>정액형(30년)</option>
-            </select>
-          </div>
-        </div>
-        <div class="pay-item">
-          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="대출상환_정액형"> 대출상환</label>
-          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
-        </div>
-        <div class="pay-item">
-          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="대출상환우대_정액형"> 대출상환우대</label>
-          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
-        </div>
-        <div class="pay-item">
-          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="우대지급_정액형"> 우대지급</label>
-          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
-        </div>
-        <div class="pay-item">
-          <label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="우대혼합_정액형"> 우대혼합</label>
-          <span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span>
-        </div>
-      </div>
-      <!-- 인출한도 -->
-      <div class="inchul-col">
-        <div class="col-header">인출한도 금액 (원)</div>
-        <div class="inchul-item">
-          <span class="i-label">소상공인대출상환</span>
-          <input type="text" id="ic1" placeholder="금액" class="align-right">
-        </div>
-        <div class="inchul-item">
-          <span class="i-label">재건축분담금납부</span>
-          <input type="text" id="ic2" placeholder="금액" class="align-right">
-        </div>
-        <div class="inchul-item">
-          <span class="i-label">선순위대출상환</span>
-          <input type="text" id="ic3" placeholder="금액" class="align-right">
-        </div>
-        <div class="inchul-item">
-          <span class="i-label">임차보증금반환</span>
-          <input type="text" id="ic4" placeholder="금액" class="align-right">
-        </div>
-        <div class="inchul-item">
-          <span class="i-label">확정기간형의무</span>
-          <input type="text" id="ic5" placeholder="금액" class="align-right">
-        </div>
-        <div class="inchul-item">
-          <span class="i-label">감정료/설정비용</span>
-          <input type="text" id="ic6" placeholder="금액" class="align-right">
-        </div>
-        <div class="inchul-item">
-          <span class="i-label">
-            기타 (<input type="text" id="ic_other_name" placeholder="내용" style="width:36px;border-bottom:1px solid #aaa;font-size:8pt;" class="align-center">)
-          </span>
-          <input type="text" id="ic7" placeholder="금액" class="align-right">
-        </div>
-      </div>
-    </div>
-
-    <!-- 저당권/연금전용계좌/담보제공방식/임차보증금 -->
-    <table style="border-top:none;margin-top:0;" class="mortgage-row">
-      <colgroup>
-        <col style="width:19mm"><!-- 저당권/전세권 라벨 -->
-        <col style="width:30mm"><!-- 저당권/전세권 입력 -->
-        <col style="width:17mm"><!-- 임차보증금 라벨 -->
-        <col style="width:14mm"><!-- 임차보증금 유/무 -->
-        <col style="width:17mm"><!-- 연금전용계좌 라벨 -->
-        <col style="width:12mm"><!-- 연금전용계좌 여/부 -->
-        <col style="width:17mm"><!-- 담보제공방식 라벨 -->
-        <col>                   <!-- 담보제공방식 선택 -->
-      </colgroup>
+      <!-- 지급방식 + 인출한도 -->
       <tr>
-        <td class="label">저당권/전세권</td>
-        <td><input type="text" id="mortgage" placeholder="내용 입력" class="align-center"></td>
-        <td class="label">임차보증금</td>
-        <td style="padding:1px 2px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;">
-            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="lease" value="유"> 유</label>
-            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="lease" value="무"> 무</label>
+        <td colspan="2" style="padding:0;vertical-align:top;">
+          <div class="pay-col">
+            <div class="col-header">지급방식 선택</div>
+            <div class="pay-item">
+              <label><input type="checkbox" name="pay_type" value="종신지급"> 종신지급</label>
+              <div class="pay-select-wrap"><select id="pay_jongsin"><option value="">-- 선택 --</option><option>정액형</option><option>초기증액형(3년)</option><option>초기증액형(5년)</option><option>초기증액형(7년)</option><option>초기증액형(10년)</option><option>정기증가형</option></select></div>
+            </div>
+            <div class="pay-item">
+              <label><input type="checkbox" name="pay_type" value="종신혼합"> 종신혼합</label>
+              <div class="pay-select-wrap"><select id="pay_honhab"><option value="">-- 선택 --</option><option>정액형</option><option>초기증액형(3년)</option><option>초기증액형(5년)</option><option>초기증액형(7년)</option><option>초기증액형(10년)</option><option>정기증가형</option></select></div>
+            </div>
+            <div class="pay-item">
+              <label><input type="checkbox" name="pay_type" value="확정혼합"> 확정혼합</label>
+              <div class="pay-select-wrap"><select id="pay_hwakjung"><option value="">-- 선택 --</option><option>정액형(10년)</option><option>정액형(15년)</option><option>정액형(20년)</option><option>정액형(25년)</option><option>정액형(30년)</option></select></div>
+            </div>
+            <div class="pay-item"><label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="대출상환_정액형"> 대출상환</label><span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span></div>
+            <div class="pay-item"><label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="대출상환우대_정액형"> 대출상환우대</label><span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span></div>
+            <div class="pay-item"><label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="우대지급_정액형"> 우대지급</label><span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span></div>
+            <div class="pay-item"><label style="width:76px;min-width:76px;"><input type="checkbox" name="pay_type" value="우대혼합_정액형"> 우대혼합</label><span style="font-size:8pt;color:#444;white-space:nowrap;">(정액형)</span></div>
           </div>
         </td>
-        <td class="label">연금전용계좌</td>
-        <td style="padding:1px 2px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;">
-            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="pension_acct" value="여"> 여</label>
-            <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="pension_acct" value="부"> 부</label>
+        <td colspan="2" style="padding:0;vertical-align:top;">
+          <div class="inchul-col">
+            <div class="col-header">인출한도 금액</div>
+            <div class="inchul-item"><span class="i-label">소상공인대출상환</span><div class="i-input-wrap"><input type="text" id="ic1" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
+            <div class="inchul-item"><span class="i-label">재건축분담금납부</span><div class="i-input-wrap"><input type="text" id="ic2" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
+            <div class="inchul-item"><span class="i-label">선순위대출상환</span><div class="i-input-wrap"><input type="text" id="ic3" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
+            <div class="inchul-item"><span class="i-label">임차보증금반환</span><div class="i-input-wrap"><input type="text" id="ic4" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
+            <div class="inchul-item"><span class="i-label">확정기간형의무</span><div class="i-input-wrap"><input type="text" id="ic5" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
+            <div class="inchul-item"><span class="i-label">감정료/설정비용</span><div class="i-input-wrap"><input type="text" id="ic6" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
+            <div class="inchul-item"><span class="i-label-other">기타 (<input type="text" id="ic_other_name" placeholder="내용" class="align-center">)</span><div class="i-input-wrap"><input type="text" id="ic7" placeholder="금액" class="align-right"><span class="i-suffix">원</span></div></div>
           </div>
         </td>
-        <td class="label">담보제공방식</td>
-        <td>
-          <select id="collateral_type" style="width:100%;">
-            <option value="">-- 선택 --</option>
-            <option>근저당권</option>
-            <option>신탁(포괄)</option>
-            <option>신탁(개별)</option>
-          </select>
+      </tr>
+      <!-- 하단 행: 각 td 안에 라벨+값을 flex로, 라벨에 우측 border로 세로줄 표현 -->
+      <tr>
+        <td class="label" style="font-size:7.6pt;padding:2px 1px;letter-spacing:-0.3px;">저당권/전세권</td>
+        <td style="padding:0;">
+          <div style="display:flex;align-items:stretch;height:100%;">
+            <input type="text" id="mortgage" placeholder="내용 입력" class="align-center"
+              style="flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:8.5pt;padding:2px 4px;min-width:0;">
+            <div style="display:flex;align-items:center;border-left:1px solid #555;background:#e8edf5;padding:2px 4px;white-space:nowrap;font-size:7.6pt;font-weight:700;letter-spacing:-0.3px;">임차보증금</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:1px 4px;">
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="lease" value="유"> 유</label>
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="lease" value="무"> 무</label>
+            </div>
+          </div>
+        </td>
+        <td style="padding:0;">
+          <div style="display:flex;align-items:stretch;height:100%;">
+            <div style="display:flex;align-items:center;background:#e8edf5;padding:2px 4px;white-space:nowrap;font-size:7.6pt;font-weight:700;letter-spacing:-0.3px;">연금전용계좌</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;flex:1;padding:1px 4px;border-left:1px solid #555;">
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="pension_acct" value="여"> 여</label>
+              <label style="display:flex;align-items:center;gap:2px;font-size:8.5pt;white-space:nowrap;cursor:pointer;"><input type="radio" name="pension_acct" value="부"> 부</label>
+            </div>
+          </div>
+        </td>
+        <td style="padding:0;">
+          <div style="display:flex;align-items:stretch;height:100%;">
+            <div style="display:flex;align-items:center;background:#e8edf5;padding:2px 4px;white-space:nowrap;font-size:7.6pt;font-weight:700;letter-spacing:-0.3px;">담보제공방식</div>
+            <select id="collateral_type" style="flex:1;font-family:inherit;font-size:8pt;border:none;border-left:1px solid #555;outline:none;background:transparent;padding:1px 2px;">
+              <option value="">-- 선택 --</option>
+              <option>근저당권</option>
+              <option>신탁(포괄)</option>
+              <option>신탁(개별)</option>
+            </select>
+          </div>
         </td>
       </tr>
     </table>
@@ -780,25 +759,25 @@
     <div class="sign-block" style="flex:1;margin-top:0;">
       <div class="sign-date-row">
         <span></span>
-        <input type="text" id="sign_year" placeholder="yyyy" class="align-right" style="width:36px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
-        <span>년</span>
-        <input type="text" id="sign_month" placeholder="m" class="align-right" style="width:18px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
-        <span>월</span>
-        <input type="text" id="sign_day" placeholder="d" class="align-right" style="width:18px;border:none;border-bottom:1.5px solid #333;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;">
-        <span>일</span>
+        <input type="text" id="sign_year" placeholder="yyyy" class="align-right" style="width:36px;border:none;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;vertical-align:baseline;">
+        <span style="font-size:8.5pt;">년&nbsp;</span>
+        <input type="text" id="sign_month" placeholder="m" class="align-right" style="width:18px;border:none;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;vertical-align:baseline;">
+        <span style="font-size:8.5pt;">월&nbsp;</span>
+        <input type="text" id="sign_day" placeholder="d" class="align-right" style="width:18px;border:none;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;vertical-align:baseline;">
+        <span style="font-size:8.5pt;">일&nbsp;</span>
       </div>
       <div class="sign-rows">
         <div class="sign-row">
           <span class="sign-label">보증신청인 겸 소유자 :</span>
           <input type="text" id="sign_owner" placeholder="" class="align-left" style="flex:1;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;" readonly>
-          <span style="border:1px solid #555;padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
+          <span style="padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
         </div>
         <div class="sign-row">
           <span class="sign-label">금융기관 :</span>
           <input type="text" id="sign_bank" placeholder="기관명" class="align-center" style="flex:1;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;">
           <input type="text" id="sign_branch" placeholder="지점명" class="align-center" style="width:25mm;border:none;border-bottom:1px solid #555;outline:none;background:transparent;font-size:8.5pt;font-family:inherit;padding:1px 4px;margin-left:4px;">
           <span style="white-space:nowrap;margin-left:2px;">지점장</span>
-          <span style="border:1px solid #555;padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
+          <span style="padding:2px 8px;color:#888;margin-left:4px;flex-shrink:0;">(인)</span>
         </div>
         <div class="sign-row">
           <span class="sign-label">금융기관 담당자 :</span>
@@ -1009,12 +988,48 @@ function bindDocListEvents() {
 document.addEventListener('DOMContentLoaded', () => {
   bindDocListEvents();
   updateDocList();
+  autoFitPage();
 });
 // 혹시 DOMContentLoaded가 이미 지난 경우
 if (document.readyState !== 'loading') {
   bindDocListEvents();
   updateDocList();
+  autoFitPage();
 }
+
+/* ── A4 한 페이지 자동 줄간격 조정 ── */
+function autoFitPage() {
+  const A4_PX = 297 * 3.7795; // 297mm → px (96dpi 기준)
+  const page = document.querySelector('.page');
+  const uls = document.querySelectorAll('#doc-list-table ul');
+  const lis = document.querySelectorAll('#doc-list-table li');
+  if (!page || !lis.length) return;
+
+  // 기본 line-height 복원
+  uls.forEach(ul => ul.style.lineHeight = '1.5');
+
+  // 페이지 여백 계산 (padding: 15mm 15mm 15mm 20mm)
+  const padPx = (15 + 15) * 3.7795;
+  const available = A4_PX - padPx;
+
+  if (page.scrollHeight <= available) {
+    // 남은 공간이 있으면 줄간격을 늘려 채움
+    let lo = 1.5, hi = 4.0;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2;
+      uls.forEach(ul => ul.style.lineHeight = String(mid));
+      if (page.scrollHeight <= available) lo = mid;
+      else hi = mid;
+    }
+    uls.forEach(ul => ul.style.lineHeight = String(lo));
+  }
+}
+
+// 입력 변화 시마다 재조정
+document.querySelectorAll('input,select').forEach(el => {
+  el.addEventListener('change', () => setTimeout(autoFitPage, 50));
+  el.addEventListener('input',  () => setTimeout(autoFitPage, 50));
+});
 </script>
 </body>
 </html>
