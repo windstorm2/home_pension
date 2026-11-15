@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>서부산 주택연금 통합 상담·신청 도구 v5.4 11160122</title>
+<title>주택연금 통합 상담·신청 보조도구 v5.5</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
 
@@ -396,7 +396,7 @@
 <!-- 상단 고정 바 -->
 <div class="top-bar no-print">
   <div class="top-bar-inner">
-    <h1>서부산 주택연금 통합 상담·신청 도구 11160122 <small>v5.4</small></h1>
+    <h1>주택연금 통합 상담·신청 보조도구 <small>v5.5</small></h1>
     <div class="top-actions">
       <button class="btn-top" onclick="document.getElementById('app-anchor').scrollIntoView({behavior:'smooth'})">📄 신청서로 이동</button>
       <button class="btn-top accent" onclick="copyDocListText()">📋 필요서류 복사</button>
@@ -919,6 +919,7 @@ var S = {
   price: null,
   priceErr: null,
   priceLoading: false,
+  priceSeq: 0,
   sise: null,
   siseLoading: false,
   siseP: null,
@@ -1130,6 +1131,7 @@ function searchAddrUI() {
 
 function resetUnit() {
   S.unit = null; S.det = null; S.price = null; S.priceErr = null; S.base = ''; S.officetel = false;
+  S.priceSeq++; // 진행 중인 이전 공시가격 분할 스캔 취소
   $('area').value = ''; $('area').readOnly = true;
   $('housePrc').value = ''; $('priceBase').innerHTML = ''; $('priceMsg').innerHTML = '';
   $('bldPriceBanner').innerHTML = '';
@@ -1213,10 +1215,14 @@ function syncBuildingToApplication(dong, ho) {
   updateDocList();
 }
 
+function normDongKey(d) {
+  return String(d || '').replace(/\s/g, '').replace(/^제/, '').replace(/동$/, '').toUpperCase();
+}
+
 function getBuildingMaxFloor(dong) {
   if (!S.bld) return null;
   if (S.bld.dongFlrs && dong) {
-    var key = String(dong).replace(/\s/g, '').replace(/^제/, '').replace(/동$/, '').toUpperCase();
+    var key = normDongKey(dong);
     if (S.bld.dongFlrs[key]) return S.bld.dongFlrs[key];
   }
   if (S.units && S.units.length) {
@@ -1253,7 +1259,7 @@ function pickAddr(a) {
       return S.sise;
     });
 
-  // 2) 표제부(동 목록 및 건물 층수) 조회
+  // 2) 표제부(동 목록 및 동별 세대수·층수) 조회
   setPill('stUnit', 'loading', '⏳ 건축물대장 조회 중...');
   var dongsP = api('/api/bld/dongs?' + qs(a)).then(function(b) { S.bld = b; return b; });
 
@@ -1357,27 +1363,122 @@ function guessFloor(h) {
   return Number(d.slice(0, d.length - 2));
 }
 
-/* 공시가격 조회 함수 (전유부에서 확보된 pk를 전달하여 정확히 매칭) */
-function startPriceFetch(a, dong, ho, pkStr) {
+/* ───── 공시가격: 표제부 동별 실제 세대수 누적 비율 계산 + 양방향 2페이지 분할 스캔 ───── */
+function calcTargetRatio(dong, ho) {
+  if (!S.bld || !S.bld.dongs || !S.bld.dongs.length || !dong) return 0;
+  var targetKey = normDongKey(dong);
+  var dongs = S.bld.dongs;
+  var hhlds = S.bld.dongHhlds || {};
+
+  var idx = dongs.findIndex(function(x) { return normDongKey(x) === targetKey; });
+  if (idx < 0) {
+    var dNum = digits(targetKey);
+    if (dNum) idx = dongs.findIndex(function(x) { return digits(x) === dNum; });
+  }
+  if (idx < 0) return 0;
+
+  // 해당 동 안에서의 층 비율 (0.1 ~ 0.9)
+  var flr = guessFloor(ho) || 5;
+  var maxFlr = getBuildingMaxFloor(dong) || 25;
+  var inDongRatio = Math.min(0.9, Math.max(0.1, flr / maxFlr));
+
+  var totalH = 0, beforeH = 0, targetH = 0;
+  dongs.forEach(function(dName, i) {
+    var k = normDongKey(dName);
+    var h = hhlds[k] || 100; // 표제부 세대수 없을 시 기본 가중치 100
+    totalH += h;
+    if (i < idx) beforeH += h;
+    if (i === idx) targetH = h;
+  });
+
+  if (totalH <= 0) return (idx + inDongRatio) / dongs.length;
+  return (beforeH + targetH * inDongRatio) / totalH;
+}
+
+/* 예상 중심 페이지(center)로부터 좌우(center, center+1, center-1, center+2, center-2...) 순서로 남은 페이지 큐 생성 */
+function buildPageOrder(totalPages, ratio) {
+  if (totalPages <= 1) return [];
+  var center = ratio > 0 ? Math.max(2, Math.min(totalPages, Math.round(ratio * totalPages))) : 2;
+  var order = [];
+  var seen = { 1: true };
+  for (var d = 0; d <= totalPages; d++) {
+    var p1 = center + d;
+    var p2 = center - d;
+    if (p1 >= 2 && p1 <= totalPages && !seen[p1]) { order.push(p1); seen[p1] = true; }
+    if (p2 >= 2 && p2 <= totalPages && !seen[p2]) { order.push(p2); seen[p2] = true; }
+  }
+  return order;
+}
+
+async function startPriceFetch(a, dong, ho, pkStr) {
+  var mySeq = ++S.priceSeq;
   S.price = null; S.priceErr = null; S.priceLoading = true;
-  setPill('stPrice', 'loading', '⏳ 공시가격 조회 중(당해→전년도)...');
+  setPill('stPrice', 'loading', '⏳ 공시가격 조회 중...');
   bldPriceSummary();
 
-  return api('/api/bld/price?' + qs(Object.assign({}, a, { dongNm: dong, hoNm: ho, pk: pkStr || '' })))
-    .then(function(pr) {
-      S.price = pr; S.priceLoading = false;
-      if (pr && pr.hsprc) {
-        setPill('stPrice', 'ok', '✓ 공시가격: ' + won(pr.hsprc) + '원 (' + (pr.year || '') + '년)');
-      } else {
-        setPill('stPrice', 'none', '공시가격: 조회안됨');
+  var curYear = new Date().getFullYear();
+  var years = [curYear, curYear - 1];
+  var ratio = calcTargetRatio(dong, ho);
+  var trace = [];
+
+  for (var yi = 0; yi < years.length; yi++) {
+    if (mySeq !== S.priceSeq) return;
+    var yr = years[yi];
+    setPill('stPrice', 'loading', '⏳ 공시가격 (' + yr + '년 1페이지 확인 중)...');
+
+    var p1;
+    try {
+      p1 = await api('/api/bld/price?' + qs(Object.assign({}, a, { dongNm: dong, hoNm: ho, pk: pkStr || '', year: yr, pages: '1' })));
+    } catch (e) {
+      trace.push(yr + '년:오류(' + e.message + ')');
+      continue;
+    }
+    if (mySeq !== S.priceSeq) return;
+
+    if (p1.status === 'ok' && p1.hsprc) {
+      S.price = p1; S.priceLoading = false;
+      setPill('stPrice', 'ok', '✓ 공시가격: ' + won(p1.hsprc) + '원 (' + yr + '년)');
+      buildPriceOptions(); applyPrice(); bldPriceSummary();
+      return;
+    }
+
+    var totalPages = Math.min(30, p1.totalPages || 0);
+    var scanned = p1.scanned || 0;
+
+    if (totalPages >= 2) {
+      var queue = buildPageOrder(totalPages, ratio);
+      for (var i = 0; i < queue.length; i += 2) {
+        if (mySeq !== S.priceSeq) return;
+        var chunk = queue.slice(i, i + 2);
+        var doneCnt = Math.min(totalPages, 1 + i + chunk.length);
+        var progressMsg = yr + '년 ' + chunk.join('·') + 'P 탐색 중 (' + doneCnt + '/' + totalPages + 'P)';
+        setPill('stPrice', 'loading', '⏳ 공시가격: ' + progressMsg);
+        S.priceProgress = progressMsg;
+        bldPriceSummary();
+
+        try {
+          var res = await api('/api/bld/price?' + qs(Object.assign({}, a, { dongNm: dong, hoNm: ho, pk: pkStr || '', year: yr, pages: chunk.join(',') })));
+          if (mySeq !== S.priceSeq) return;
+          scanned += (res.scanned || 0);
+          if (res.status === 'ok' && res.hsprc) {
+            S.price = res; S.priceLoading = false; S.priceProgress = '';
+            setPill('stPrice', 'ok', '✓ 공시가격: ' + won(res.hsprc) + '원 (' + yr + '년, P' + chunk.join('/') + ' 적중)');
+            buildPriceOptions(); applyPrice(); bldPriceSummary();
+            return;
+          }
+        } catch (e) {
+          // 특정 청크 일시 오류 시 멈추지 않고 다음 청크 계속 탐색
+        }
       }
-      buildPriceOptions(); applyPrice(); bldPriceSummary();
-    })
-    .catch(function(e) {
-      S.priceErr = e.message; S.priceLoading = false;
-      setPill('stPrice', 'fail', '✗ 공시가격 조회 실패');
-      buildPriceOptions(); applyPrice(); bldPriceSummary();
-    });
+    }
+    trace.push(yr + '년:' + scanned + '/' + (p1.totalCount || 0) + '건');
+  }
+
+  if (mySeq !== S.priceSeq) return;
+  S.price = { hsprc: null, status: 'not_found', trace: trace };
+  S.priceLoading = false; S.priceProgress = '';
+  setPill('stPrice', 'none', '공시가격: 조회안됨');
+  buildPriceOptions(); applyPrice(); bldPriceSummary();
 }
 
 function loadUnit(dong, ho, u, dongsP) {
@@ -1385,7 +1486,7 @@ function loadUnit(dong, ho, u, dongsP) {
   var a = S.addr, p = Object.assign({}, a, { dongNm: dong, hoNm: ho, pks: u ? u.pks.join(',') : '' });
 
   setPill('stUnit', 'loading', '⏳ 전유면적·관리번호 조회 중...');
-  setPill('stPrice', 'loading', '⏳ 공시가격 대기(관리번호 확인 후 즉시 조회)...');
+  setPill('stPrice', 'loading', '⏳ 공시가격 대기(관리번호·비율 계산 후 즉시 탐색)...');
   S.priceLoading = true;
   bldPriceSummary();
 
@@ -1405,19 +1506,19 @@ function loadUnit(dong, ho, u, dongsP) {
     if (d.area != null) setPill('stUnit', 'ok', '✓ 전용 ' + d.area + '㎡ · ' + (fl ? fl + '층' : ''));
     else setPill('stUnit', 'none', '전유면적 미확인(직접입력)');
 
-    // 핵심: 전유부 조회로 확보한 세대 고유관리번호(pk / pks)를 넣어 공시가격을 즉시 조회!
-    var finalDong = (d.matched && d.matched.dongNm) ? d.matched.dongNm : dong;
-    var finalHo   = (d.matched && d.matched.hoNm) ? d.matched.hoNm : ho;
-    var pkList = (d.pks && d.pks.length) ? d.pks.join(',') : (d.pk || (u && u.pks ? u.pks.join(',') : ''));
-    startPriceFetch(a, finalDong, finalHo, pkList);
-
-    // 시세가 이미 도착해 있다면 전용면적이 채워진 즉시 시세 가격부터 먼저 화면에 반영
     buildPriceOptions();
     applyPrice();
     bldPriceSummary();
 
     return dongsP.then(function(b) { return b; }, function() { return null; }).then(function(b) {
+      var finalDong = (d.matched && d.matched.dongNm) ? d.matched.dongNm : dong;
+      var finalHo   = (d.matched && d.matched.hoNm) ? d.matched.hoNm : ho;
+      var pkList = (d.pks && d.pks.length) ? d.pks.join(',') : (d.pk || (u && u.pks ? u.pks.join(',') : ''));
+
       syncBuildingToApplication(finalDong, finalHo);
+
+      // 표제부(동별 세대수)와 전유부(PK)가 모두 확보된 상태에서 비율 점프 + 2페이지 분할 스캔 시작!
+      startPriceFetch(a, finalDong, finalHo, pkList);
 
       var maxFlr = getBuildingMaxFloor(finalDong || dong);
       var flrText = (fl != null ? fl + '층' + (d.flrNo != null ? '(대장)' : '(호수추정)') : '미확인') + (maxFlr ? ' / 건물 지상 ' + maxFlr + '층' : '');
@@ -1461,7 +1562,7 @@ function loadUnit(dong, ho, u, dongsP) {
 function bldPriceSummary() {
   var parts = [];
   if (S.priceLoading) {
-    parts.push('건축물대장 주택가격(공시가격): ⏳ <b>조회 중 (당해 연도 → 전년도 검색 중)...</b>');
+    parts.push('건축물대장 주택가격(공시가격): ⏳ <b>' + (S.priceProgress || '조회 중 (당해 연도 → 전년도 비율 탐색 중)...') + '</b>');
   } else if (S.price && S.price.hsprc) {
     parts.push('건축물대장 주택가격(공시가격): <b>' + won(S.price.hsprc) + '원</b> (' + (S.price.year ? S.price.year + '년, ' : '') + '기준일 ' + fmtDay(S.price.stdDay || S.price.crtnDay) + ') → ×' + $('ratio').value + '% = <b>' + won(hsprcConv()) + '원</b>');
   } else {
