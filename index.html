@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>서부산 주택연금 상담·신청 통합도구 v5.1</title>
+<title>서부산 주택연금 통합 상담 도구 v5.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
 
@@ -87,7 +87,7 @@
     border-bottom: 2px solid #eef1f5;
     padding-bottom: 6px;
   }
-  /* 고객기본정보 3열 고정 그리드 (1줄: 생년월일/인출금, 2줄: 우대형 3개 항목) */
+  /* 고객기본정보 3열 고정 그리드 */
   .c-grid-3 {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -365,7 +365,7 @@
 <!-- 상단 고정 바 (내부 폭 210mm 정렬) -->
 <div class="top-bar no-print">
   <div class="top-bar-inner">
-    <h1>주택연금 통합 상담·신청 보조도구 <small>v5.1</small></h1>
+    <h1>서부산 주택연금 상담도구 <small>v5.2</small></h1>
     <div class="top-actions">
       <button class="btn-top" onclick="document.getElementById('app-anchor').scrollIntoView({behavior:'smooth'})">📄 신청서로 이동</button>
       <button class="btn-top accent" onclick="copyDocListText()">📋 필요서류 복사</button>
@@ -434,20 +434,18 @@
     </div>
   </div>
 
-  <!-- 2. 담보주택 주소 및 건축물대장 조회 -->
+  <!-- 2. 담보주택 주소 및 건축물대장 조회 (동·호 별도 입력칸 제거, 파싱 결과는 아래 동·호에 자동 반영) -->
   <div class="c-sec">
     <h2>Step 2. 담보주택 조회 <small style="font-weight:400;color:#666;">(시/도 생략 시 부산·경남 양산 자동 우선 검색)</small></h2>
     <div class="c-row">
-      <input type="text" class="c-input" id="addrQ" placeholder="도로명주소, 지번 또는 건물명 + 동·호 (예: 수영강로 123 111동 222호)" style="flex:3.2;">
-      <input type="text" class="c-input" id="dongIn" placeholder="동 (선택)" style="flex:0.8;">
-      <input type="text" class="c-input" id="hoIn" placeholder="호 (선택)" style="flex:0.8;">
+      <input type="text" class="c-input" id="addrQ" placeholder="도로명주소, 지번 또는 건물명 + 동·호 (예: 수영강로 123 111동 222호)" style="flex:1;">
       <button class="c-btn" id="addrBtn">주소 검색</button>
     </div>
     <div class="addr-list" id="addrList"></div>
 
     <div class="c-grid" style="margin-top:10px;">
-      <div><label class="c-label">동 선택</label><select class="c-select" id="dongSel" disabled></select></div>
-      <div><label class="c-label">호 선택</label><select class="c-select" id="hoSel" disabled></select></div>
+      <div><label class="c-label">동</label><select class="c-select" id="dongSel" disabled></select></div>
+      <div><label class="c-label">호</label><select class="c-select" id="hoSel" disabled></select></div>
       <div><label class="c-label">전용면적 (㎡)</label><input type="text" class="c-input" id="area" readonly></div>
       <div>
         <label class="c-label">최저층 여부 (자동판정, 변경 가능)</label>
@@ -865,6 +863,8 @@ var AREA_TOL = 1.0;
 
 var S = {
   addr: null,
+  parsedDong: '',
+  parsedHo: '',
   bld: null,
   units: [],
   unit: null,
@@ -976,7 +976,6 @@ $('ownerBirth').oninput = function() {
   updateDocList();
 };
 
-/* 배우자 생년월일 입력 여부로 배우자 유무 자동 판단 (체크박스 제거됨) */
 $('spouseBirth').oninput = function() {
   this.value = digits(this.value).slice(0, 8);
   var pfx = birthToSsnPrefix(this.value);
@@ -1037,9 +1036,9 @@ $('ratio').onchange = function() {
   applyPrice();
 };
 
-/* ───── 2. 주소 검색 (동·호 자동 파싱 + 부산·양산 우선) & 건축물대장 ───── */
+/* ───── 2. 주소 검색 (동·호 자동 파싱 → 아래 동·호 드롭다운에 즉시 반영) ───── */
 $('addrBtn').onclick = searchAddrUI;
-$('addrQ').onkeydown = $('dongIn').onkeydown = $('hoIn').onkeydown = function(e) {
+$('addrQ').onkeydown = function(e) {
   if (e.key === 'Enter') searchAddrUI();
 };
 
@@ -1049,10 +1048,9 @@ function searchAddrUI() {
   $('addrList').innerHTML = '<small>도로명주소 검색 중...</small>';
   api('/api/addr?q=' + encodeURIComponent(q)).then(function(res) {
     var list = Array.isArray(res) ? res : (res.items || []);
-    if (res.parsed) {
-      if (res.parsed.dong) $('dongIn').value = res.parsed.dong;
-      if (res.parsed.ho) $('hoIn').value = res.parsed.ho;
-    }
+    S.parsedDong = (res.parsed && res.parsed.dong) ? res.parsed.dong : '';
+    S.parsedHo   = (res.parsed && res.parsed.ho) ? res.parsed.ho : '';
+
     if (!list.length) {
       $('addrList').innerHTML = '<small style="color:#c62828;">결과 없음 — 도로명, 지번 또는 건물명으로 다시 검색하세요.</small>';
       return;
@@ -1091,14 +1089,62 @@ function mapPurpsToHouseType(purpsStr) {
   return '';
 }
 
+/* 도로명주소 표준 표기법: "도로명주소, 동 호수(법정동, 건물명) (법정동 지번)" 생성 */
+function formatStandardHouseAddr(a, dong, ho) {
+  if (!a) return '';
+  var road = (a.roadAddrPart1 || a.roadAddr || '').trim();
+  var jb = (a.jibunAddr || '').trim();
+
+  // 지번주소에서 법정동(동/읍/면/리/가) 및 번지(산 포함) 추출
+  var dongName = '', lotNum = '';
+  var m = jb.match(/(\S+(?:동|읍|면|리|가))\s+(산?\s*\d+(?:-\d+)?)/);
+  if (m) {
+    dongName = m[1];
+    lotNum = m[2].replace(/\s+/g, '');
+  } else {
+    var m2 = (a.roadAddr || '').match(/\(([^,)]+)/);
+    if (m2) dongName = m2[1].trim();
+    var b1 = Number(a.bun || 0), b2 = Number(a.ji || 0);
+    if (b1) lotNum = (a.platGbCd === '1' ? '산' : '') + b1 + (b2 ? '-' + b2 : '');
+  }
+
+  // 동·호 표기 정리
+  var dhParts = [];
+  if (dong && dong !== '(동 없음)') {
+    var dClean = String(dong).trim();
+    dhParts.push(/동$/.test(dClean) ? dClean : dClean + '동');
+  }
+  if (ho) {
+    var hClean = String(ho).trim();
+    dhParts.push(/호$/.test(hClean) ? hClean : hClean + '호');
+  }
+  var dhStr = dhParts.join(' ');
+
+  // 괄호 안 참고항목: (법정동, 건물명)
+  var refParts = [];
+  if (dongName) refParts.push(dongName);
+  if (a.bdNm) refParts.push(a.bdNm.trim());
+  var refStr = refParts.length ? '(' + refParts.join(', ') + ')' : '';
+
+  // 도로명주소 표준 조합
+  var stdRoad = road;
+  if (dhStr) {
+    stdRoad += ', ' + dhStr + refStr;
+  } else if (refStr) {
+    stdRoad += ' ' + refStr;
+  }
+
+  // 말미 지번 병기: (동+지번)
+  var jibunShort = (dongName && lotNum) ? (dongName + ' ' + lotNum) : jb;
+  if (jibunShort) {
+    stdRoad += ' (' + jibunShort + ')';
+  }
+  return stdRoad;
+}
+
 function syncBuildingToApplication(dong, ho) {
   if (!S.addr) return;
-  var fullAddr = S.addr.roadAddrPart1 || S.addr.roadAddr || '';
-  var detail = [];
-  if (dong && dong !== '(동 없음)') detail.push(/동$/.test(dong) ? dong : dong + '동');
-  if (ho) detail.push(/호$/.test(ho) ? ho : ho + '호');
-  if (S.addr.bdNm) detail.push(S.addr.bdNm);
-  if (detail.length) fullAddr += ' (' + detail.join(', ') + ')';
+  var fullAddr = formatStandardHouseAddr(S.addr, dong, ho);
 
   $('house_addr').value = fullAddr;
   ['app', 'sp'].forEach(function(who) {
@@ -1119,22 +1165,35 @@ function syncBuildingToApplication(dong, ho) {
 function pickAddr(a) {
   S.addr = a; S.bld = null; S.units = []; resetUnit();
   $('hoSel').innerHTML = ''; $('hoSel').disabled = true;
-  syncBuildingToApplication('', '');
+
+  var dong = S.parsedDong || '', ho = S.parsedHo || '';
+  syncBuildingToApplication(dong, ho);
 
   S.sise = null;
   S.siseP = api('/api/sise?' + qs({ zipNo: a.zipNo, roadAddr: a.roadAddrPart1 }))
     .then(function(s) { S.sise = s; return s; })
     .catch(function(e) { S.sise = { status: 'unavailable', reason: e.message, items: [] }; return S.sise; });
 
-  var dong = $('dongIn').value.trim(), ho = $('hoIn').value.trim();
   var dongsP = api('/api/bld/dongs?' + qs(a)).then(function(b) { S.bld = b; return b; });
 
   if (ho) {
-    fill($('dongSel'), [dong || '(동 없음)'], function(x) { return x; }, '동'); $('dongSel').value = '0';
-    fill($('hoSel'), [ho], function(x) { return x; }, '호'); $('hoSel').value = '0';
-    banner('bldMsg', 'info', '입력한 동·호로 건축물대장을 바로 조회합니다...');
-    dongsP.catch(function() {});
+    // 파싱된 동·호를 아래 동/호 드롭다운에 즉시 반영하여 조회하고, 백그라운드로 전체 동·호 목록도 채워줌
+    var dLabel = dong ? (/동$/.test(dong) ? dong : dong + '동') : '(동 없음)';
+    var hLabel = /호$/.test(ho) ? ho : ho + '호';
+    fill($('dongSel'), [dLabel], function(x) { return x; }, '동'); $('dongSel').value = '0';
+    fill($('hoSel'), [hLabel], function(x) { return x; }, '호'); $('hoSel').value = '0';
+    banner('bldMsg', 'info', '인식된 동·호(' + (dong ? dLabel + ' ' : '') + hLabel + ')로 건축물대장을 바로 조회합니다...');
     loadUnit(dong, ho, null, dongsP);
+
+    // 동 목록이 도착하면 드롭다운 선택지를 전체 동으로 확장하되 현재 동 선택 유지
+    dongsP.then(function(b) {
+      if (b && b.dongs && b.dongs.length) {
+        fill($('dongSel'), b.dongs, function(x) { return x; }, '동 선택');
+        var dCore = digits(dong) || dong;
+        var idx = b.dongs.findIndex(function(x) { return (digits(x) || x) === dCore; });
+        if (idx >= 0) $('dongSel').value = String(idx);
+      }
+    }).catch(function() {});
     return;
   }
 
@@ -1154,6 +1213,11 @@ function pickAddr(a) {
     fill($('dongSel'), b.dongs, function(x) { return x; }, '동 선택');
     syncBuildingToApplication('', '');
     banner('bldMsg', 'info', '건축물대장 구분: <b>' + (b.regstr || '') + '</b> · 용도: <b>' + (b.purps || '미확인') + (b.etcPurps ? ' (' + b.etcPurps + ')' : '') + '</b> · 세대수 ' + (b.hhldCnt || '-') + ' · 동 ' + b.dongs.length + '개 — 동을 선택하세요.');
+    if (dong) {
+      var dCore = digits(dong) || dong;
+      var matchIdx = b.dongs.findIndex(function(x) { return (digits(x) || x) === dCore; });
+      if (matchIdx >= 0) { $('dongSel').value = String(matchIdx); $('dongSel').onchange(); return; }
+    }
     if (b.dongs.length === 1) { $('dongSel').value = '0'; $('dongSel').onchange(); }
   }).catch(function(e) {
     banner('bldMsg', 'err', '건축물대장 조회 실패: ' + e.message + ' — 전용면적·가격을 직접 입력해 진행하세요.');
@@ -1170,7 +1234,7 @@ $('dongSel').onchange = function() {
   api('/api/bld/units?' + qs(Object.assign({}, S.addr, { dongNm: dong }))).then(function(units) {
     S.units = units;
     if (!units.length) {
-      banner('bldMsg', 'warn', '이 동의 전유부(호) 목록이 조회되지 않습니다 — 상단 동·호 입력란에 직접 입력 후 다시 검색하거나 면적·가격을 직접 입력하세요.');
+      banner('bldMsg', 'warn', '이 동의 전유부(호) 목록이 조회되지 않습니다 — 주소 검색창에 동·호를 함께 입력해 검색하거나 면적·가격을 직접 입력하세요.');
       $('area').readOnly = false;
       buildPriceOptions(); applyPrice();
       return;
@@ -1228,9 +1292,12 @@ function loadUnit(dong, ho, u, dongsP) {
     $('lowest').value = low ? 'Y' : 'N';
 
     return dongsP.then(function(b) { return b; }, function() { return null; }).then(function(b) {
-      syncBuildingToApplication(dong, ho);
+      var finalDong = (d.matched && d.matched.dongNm) ? d.matched.dongNm : dong;
+      var finalHo   = (d.matched && d.matched.hoNm) ? d.matched.hoNm : ho;
+      syncBuildingToApplication(finalDong, finalHo);
+
       var purps = d.purps || (u && u.purps) || (b && (b.purps + (b.etcPurps ? ' (' + b.etcPurps + ')' : ''))) || '미확인';
-      var msg = ['<b>' + (dong ? dong + ' ' : '') + ho + '</b> · 건축물대장 용도: <b>' + purps + '</b>' + (d.etcPurps && d.purps ? ' (' + d.etcPurps + ')' : '') + (d.strct ? ' · 구조: <b>' + d.strct + '</b>' : '') + ' · 층: ' + (fl != null ? fl + '층' + (d.flrNo != null ? '(대장)' : '(호수 추정)') : '미확인') + ' · 최저층 자동판정: <b>' + (low ? '예' : '아니오') + '</b>'];
+      var msg = ['<b>' + (finalDong ? finalDong + ' ' : '') + finalHo + '</b> · 건축물대장 용도: <b>' + purps + '</b>' + (d.etcPurps && d.purps ? ' (' + d.etcPurps + ')' : '') + (d.strct ? ' · 구조: <b>' + d.strct + '</b>' : '') + ' · 층: ' + (fl != null ? fl + '층' + (d.flrNo != null ? '(대장)' : '(호수 추정)') : '미확인') + ' · 최저층 자동판정: <b>' + (low ? '예' : '아니오') + '</b>'];
       var warn = false;
       if (d.area == null) {
         warn = true;
@@ -1547,7 +1614,6 @@ document.querySelectorAll('.ic-sub').forEach(function(inp) {
   });
 });
 
-/* 기타(ic7)를 사용자가 직접 수정할 경우 콤마 및 합계만 갱신 */
 $('ic7').addEventListener('input', function() {
   var raw = digits(this.value);
   this.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
@@ -1593,35 +1659,28 @@ function isPreferentialNow() {
 }
 
 function updateDocList() {
-  // 1. 배우자 유무: 배우자 생년월일(또는 신청서 배우자 성명/주민번호) 입력 여부로 판단
   var spBirth = digits($('spouseBirth').value);
   var spName  = ($('sp_name').value || '').trim();
   var spSsn   = digits($('sp_ssn').value);
   var hasSpouse = spBirth.length > 0 || spName.length > 0 || spSsn.length > 0;
 
-  // 2. 신청인 주소 ≠ 배우자 주소 여부
   var appAddr = ($('app_addr').value || '').trim();
   var spAddr  = ($('sp_addr').value || '').trim();
   var appSame = $('app_addr_same').checked;
   var spSame  = $('sp_addr_same').checked;
   var addrSame = (appSame && spSame) || (appAddr.length > 0 && appAddr === spAddr);
 
-  // 3. 공동소유 여부
   var ownerVal = document.querySelector('input[name="ownership"]:checked')?.value || '단독';
   var isJoint = ownerVal === '공동';
 
-  // 4. 신탁방식 여부
   var collateral = $('collateral_type').value || '';
   var isTrust = collateral.indexOf('신탁') !== -1;
 
-  // 5. 우대형 여부
   var isSpecial = isPreferentialNow();
 
-  // 6. 주거용 오피스텔 여부
   var houseType = $('house_type').value || '';
   var isOffice = houseType === '주거용오피스텔' || S.officetel;
 
-  /* 신청인 주민센터 발급 서류 */
   var appCenter = [
     '신청인 주민등록등본 2부',
     '신청인 주민등록초본 1부 (전 주소 포함)',
@@ -1633,14 +1692,12 @@ function updateDocList() {
   if (isSpecial) appCenter.push('기초연금수급자격확인서 1부 <span style="color:#555;font-size:7.5pt;">(2.5억 미만 1주택자)</span>');
   if (isOffice) appCenter.push('지방세 세목별 과세증명서 1부 <span style="color:#555;font-size:7.5pt;">(주거용 오피스텔 확인)</span>');
 
-  /* 신청인 기타 서류 (상담자 수기 체크박스 ☐ 및 단서 고정 표기) */
   var appEtc = [
     '신청인 인감도장 및 신분증',
     '☐ 대출잔액증명서 1부 <span style="color:#555;font-size:7.5pt;">(일시인출로 상환할 대출이 있는 경우)</span>',
     '☐ 등기권리증 원본 <span style="color:#555;font-size:7.5pt;">(소지한 경우에 한함)</span>'
   ];
 
-  /* 배우자 서류 */
   var spCenter = [];
   if (hasSpouse) {
     spCenter.push('배우자 가족관계증명서(상세) 1부');
@@ -1666,7 +1723,6 @@ function updateDocList() {
   $('td-doc-spouse-etc').style.display    = show;
   $('col-spouse').style.display           = show;
 
-  /* 신탁 주의 각주 */
   var note = $('doc-trust-note');
   if (isTrust) {
     if (!note) {
@@ -1683,7 +1739,6 @@ function updateDocList() {
   setTimeout(autoFitPage, 30);
 }
 
-/* 필요서류 목록 클립보드 복사 */
 function copyDocListText() {
   var hasSpouse = $('th-doc-spouse').style.display !== 'none';
   function extract(sel) {
@@ -1724,7 +1779,6 @@ function copyDocListText() {
   }
 }
 
-/* A4 한 페이지 줄간격 이진탐색 자동 맞춤 */
 function autoFitPage() {
   var A4_PX = 297 * 3.7795;
   var page = document.querySelector('.page');
@@ -1748,7 +1802,6 @@ function autoFitPage() {
   }
 }
 
-/* 이벤트 바인딩 */
 ['sp_name', 'sp_ssn', 'app_addr', 'sp_addr', 'house_type', 'collateral_type'].forEach(function(id) {
   var el = $(id);
   if (el) {
@@ -1765,7 +1818,6 @@ function resetAll() {
   location.reload();
 }
 
-// 초기 실행
 syncAddr('app');
 syncAddr('sp');
 updateDocList();
