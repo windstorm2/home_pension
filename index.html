@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주택연금 통합 상담·신청 보조도구 v5.7</title>
+<title>주택연금 통합 상담·신청 보조도구 v6.0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
 
@@ -396,7 +396,7 @@
 <!-- 상단 고정 바 -->
 <div class="top-bar no-print">
   <div class="top-bar-inner">
-    <h1>주택연금 통합 상담·신청 보조도구 <small>v5.7</small></h1>
+    <h1>주택연금 통합 상담·신청 보조도구 <small>v6.0</small></h1>
     <div class="top-actions">
       <button class="btn-top" onclick="document.getElementById('app-anchor').scrollIntoView({behavior:'smooth'})">📄 신청서로 이동</button>
       <button class="btn-top accent" onclick="copyDocListText()">📋 필요서류 복사</button>
@@ -419,7 +419,7 @@
     </div>
   </div>
 
-  <!-- 1. 고객 기본 정보 (생년월일 6자리 입력 반영) -->
+  <!-- 1. 고객 기본 정보 (생년월일 6자리 입력) -->
   <div class="c-sec">
     <h2>
       <span>Step 1. 고객 기본 정보 <small style="font-weight:400;color:#666;">(※ 신청자는 주택소유자 중 연소자 · 배우자 생년월일 미입력 시 배우자 없음 처리)</small></span>
@@ -463,7 +463,7 @@
     </div>
   </div>
 
-  <!-- 2. 담보주택 주소 및 건축물·토지 조회 -->
+  <!-- 2. 담보주택 주소 및 건축물·토지·대지권 조회 -->
   <div class="c-sec">
     <h2>
       <span>Step 2. 담보주택 조회 <small style="font-weight:400;color:#666;">(시/도 생략 시 부산·경남 양산 자동 우선 검색)</small></span>
@@ -918,6 +918,7 @@ var S = {
   unit: null,
   det: null,
   land: null,
+  landRightRatio: '',
   price: null,
   priceErr: null,
   priceLoading: false,
@@ -1098,7 +1099,7 @@ $('ratio').onchange = function() {
   bldPriceSummary();
 };
 
-/* ───── 2. 주소 검색 & 건축물·토지 요약 (단순화 표기 적용) ───── */
+/* ───── 2. 주소 검색 & 건축물·토지·대지권 요약 ───── */
 $('addrBtn').onclick = searchAddrUI;
 $('addrQ').onkeydown = function(e) {
   if (e.key === 'Enter') searchAddrUI();
@@ -1135,7 +1136,7 @@ function searchAddrUI() {
 }
 
 function resetUnit() {
-  S.unit = null; S.det = null; S.land = null; S.price = null; S.priceErr = null; S.base = ''; S.officetel = false;
+  S.unit = null; S.det = null; S.land = null; S.landRightRatio = ''; S.price = null; S.priceErr = null; S.base = ''; S.officetel = false;
   S.priceSeq++;
   $('area').value = ''; $('area').readOnly = true;
   $('housePrc').value = ''; $('priceBase').innerHTML = ''; $('priceMsg').innerHTML = '';
@@ -1200,6 +1201,62 @@ function formatStandardHouseAddr(a, dong, ho) {
   return stdRoad;
 }
 
+/* 대지권비율 계산 3중 안전망:
+   1) 브이월드 대지권등록부(ldragsList) 또는 건축물대장 전유부(ldaQotaAr/ldaQotaRate) 원문 우선
+   2) 브이월드 공동주택속성(getApartHousingPriceAttr)의 대지권지분 보조
+   3) 만약 두 API에서 모두 대지권지분(분자)이 안 내려온 단지라도, 표제부 전체대지면적(platArea) × (세대 연면적 / 단지 총연면적)으로 추정 대지권비율을 산출하여 절대 빈칸이 되지 않도록 보장! */
+function computeBestLandRight() {
+  var b = S.bld, d = S.det, l = S.land;
+  var totalLandAr = (b && b.platArea && Number(b.platArea) > 0) ? Number(b.platArea) : ((l && l.landArea && Number(l.landArea) > 0) ? Number(l.landArea) : null);
+
+  var rightAr = (d && d.ldaQotaAr && Number(d.ldaQotaAr) > 0) ? Number(d.ldaQotaAr) : ((l && l.landRightArea && Number(l.landRightArea) > 0) ? Number(l.landRightArea) : null);
+  var rawRate = (d && d.ldaQotaRate) || (l && l.landRightRatio) || '';
+  var src = (l && l.rightSource) || (d && (d.ldaQotaAr || d.ldaQotaRate) ? '건축물대장' : '');
+
+  var m = String(rawRate).match(/([\d,.]+)\s*분의\s*([\d,.]+)/);
+  if (m) {
+    var denFromRate = Number(m[1].replace(/,/g, ''));
+    var numFromRate = Number(m[2].replace(/,/g, ''));
+    if (numFromRate > 0) rightAr = numFromRate;
+    var finalDen = (totalLandAr && totalLandAr > denFromRate) ? totalLandAr : (denFromRate || totalLandAr);
+    return {
+      totalLandAr: finalDen,
+      rightAr: rightAr,
+      ratioText: finalDen && rightAr ? (finalDen + '분의 ' + rightAr) : rawRate,
+      source: src,
+      estimated: false
+    };
+  }
+
+  if (totalLandAr && rightAr) {
+    return {
+      totalLandAr: totalLandAr,
+      rightAr: rightAr,
+      ratioText: totalLandAr + '분의 ' + rightAr,
+      source: src,
+      estimated: false
+    };
+  }
+
+  // 3순위 폴백: 대지권 API 응답이 비어있는 경우 단지 연면적(또는 세대수) 대비 세대 면적 비율로 대지권 지분 추정
+  var unitAr = (d && (d.totalUnitArea || d.area)) || Number($('area').value) || 0;
+  var bldTotAr = (b && b.totArea && Number(b.totArea) > 0) ? Number(b.totArea) : 0;
+  if (totalLandAr && unitAr > 0 && bldTotAr > unitAr) {
+    var estRight = Math.round((totalLandAr * (unitAr / bldTotAr)) * 100) / 100;
+    if (estRight > 0) {
+      return {
+        totalLandAr: totalLandAr,
+        rightAr: estRight,
+        ratioText: totalLandAr + '분의 ' + estRight,
+        source: '면적비례추정',
+        estimated: true
+      };
+    }
+  }
+
+  return { totalLandAr: totalLandAr, rightAr: rightAr, ratioText: rawRate || '', source: src, estimated: false };
+}
+
 function syncBuildingToApplication(dong, ho) {
   if (!S.addr) return;
   var fullAddr = formatStandardHouseAddr(S.addr, dong, ho);
@@ -1212,9 +1269,11 @@ function syncBuildingToApplication(dong, ho) {
 
   if ($('area').value) $('area_bldg').value = $('area').value;
 
-  // 신청서 대지면적 기입: 공동주택 대지권면적이 있으면 대지권면적, 없으면 토지대장/표제부 대지면적
-  var landAr = (S.det && S.det.ldaQotaAr) || (S.land && S.land.landRightArea) || (S.land && S.land.landArea) || (S.bld && S.bld.platArea);
-  if (landAr) $('area_land').value = landAr;
+  var lr = computeBestLandRight();
+  S.landRightRatio = lr.ratioText || '';
+
+  var appLandVal = lr.rightAr || lr.totalLandAr || '';
+  if (appLandVal) $('area_land').value = appLandVal;
 
   var purps = ((S.det && S.det.purps) || '') + ' ' + ((S.unit && S.unit.purps) || '') + ' ' + ((S.bld && (S.bld.purps + ' ' + S.bld.etcPurps)) || '');
   var mappedType = mapPurpsToHouseType(purps);
@@ -1241,15 +1300,13 @@ function getBuildingMaxFloor(dong) {
   return S.bld.grndFlr || null;
 }
 
-/* 구조 명칭 간결화: "철근콘크리트구조 (철근콘크리트조)" → "철근콘크리트조" */
 function shortStrct(s) {
   if (!s) return '';
   var clean = String(s).split('(')[0].trim();
   return clean.replace(/구조$/, '조');
 }
 
-/* 1번 & 3번 요청 반영: 라벨 없이 내용만 간결하게 요약 문자열 생성
-   예: "109동 203호 · 아파트 · 철근콘크리트조 · 3층/총38층 · 10개동/1,200세대 · 사용승인 1999.01.21(27년 경과) · 전체대지 45,210㎡ · 대지권 42.1㎡(42.1/45210)" */
+/* 부동산 요약정보 문자열 생성 (전체대지 + 대지권비율 통합 표기) */
 function buildCompactSummary(dong, ho, fl) {
   var items = [];
   var b = S.bld, d = S.det, u = S.unit, l = S.land;
@@ -1258,21 +1315,21 @@ function buildCompactSummary(dong, ho, fl) {
   var dh = ((dong && dong !== '(동 없음)') ? dong + ' ' : '') + (ho || '');
   if (dh.trim()) items.push('<b>' + dh.trim() + '</b>');
 
-  // 2) 용도 (명칭 없이 값만)
+  // 2) 용도
   var purps = (d && d.purps) || (u && u.purps) || (b && b.purps) || '';
   if (purps) items.push('<b>' + purps + '</b>');
 
-  // 3) 구조 (명칭 없이 값만)
+  // 3) 구조
   var st = shortStrct((d && d.strct) || (b && b.strct) || '');
   if (st) items.push(st);
 
-  // 4) 층/총층수 ("3층/총38층")
+  // 4) 층/총층수 ("3층/총15층")
   var maxFlr = getBuildingMaxFloor(dong);
   if (fl != null && maxFlr) items.push('<b>' + fl + '층/총' + maxFlr + '층</b>');
   else if (fl != null) items.push('<b>' + fl + '층</b>');
   else if (maxFlr) items.push('총' + maxFlr + '층');
 
-  // 5) 단지규모 ("10개동/1,200세대")
+  // 5) 단지규모 ("4개동/270세대")
   if (b) {
     var dCnt = b.dongs ? b.dongs.length : 0;
     var hCnt = b.totalHhld != null ? b.totalHhld : b.hhldCnt;
@@ -1282,7 +1339,7 @@ function buildCompactSummary(dong, ho, fl) {
     if (scale.length) items.push(scale.join('/'));
   }
 
-  // 6) 사용승인일 및 경과연수 ("사용승인 1999.01.21(27년 경과)")
+  // 6) 사용승인일 및 경과연수 ("사용승인 1999.09.21(27년 경과)")
   if (b && b.useAprDay && String(b.useAprDay).length >= 4) {
     var ua = String(b.useAprDay);
     var bYear = Number(ua.slice(0, 4));
@@ -1290,28 +1347,23 @@ function buildCompactSummary(dong, ho, fl) {
     items.push('사용승인 ' + fmtDay(ua) + '(' + elapsed + '년 경과)');
   }
 
-  // 7) 토지/대지권 정보 (공동주택 vs 일반주택 구분 표기)
+  // 7) 전체대지 및 대지권비율 통합 표기
   var isCollective = (b && b.collective) || !!ho;
-  var totalLandAr = (l && l.landArea) || (b && b.platArea) || null;
+  var lr = computeBestLandRight();
   var jimok = (l && l.jimok) || '';
-  var rightAr = (d && d.ldaQotaAr) || (l && l.landRightArea) || null;
-  var rightRate = (d && d.ldaQotaRate) || (l && l.landRightRatio) || '';
 
   if (isCollective) {
-    if (totalLandAr) items.push('전체대지 ' + won(totalLandAr) + '㎡' + (jimok ? '(' + jimok + ')' : ''));
-    if (rightAr || rightRate) {
-      var rStr = '대지권 ';
-      if (rightAr) rStr += rightAr + '㎡';
-      if (rightRate) rStr += (rightAr ? '(' + rightRate + ')' : rightRate);
-      items.push(rStr);
+    if (lr.totalLandAr) items.push('전체대지 ' + won(lr.totalLandAr) + '㎡' + (jimok ? '(' + jimok + ')' : ''));
+    if (lr.ratioText) {
+      items.push('대지권비율 <b>' + lr.ratioText + '</b>' + (lr.estimated ? '(추정)' : ''));
     }
   } else {
-    if (jimok || totalLandAr) {
-      items.push('토지 ' + (jimok ? jimok + ' ' : '') + (totalLandAr ? won(totalLandAr) + '㎡' : ''));
+    if (jimok || lr.totalLandAr) {
+      items.push('토지 ' + (jimok ? jimok + ' ' : '') + (lr.totalLandAr ? won(lr.totalLandAr) + '㎡' : ''));
     }
   }
 
-  // 8) 개별공시지가 (토지 공시가격)
+  // 8) 개별공시지가
   if (l && l.landPricePerM2) {
     var lpStr = '공시지가 ' + won(l.landPricePerM2) + '원/㎡';
     if (!isCollective && l.landPriceTotal) {
@@ -1327,6 +1379,12 @@ function renderBldBanner(dong, ho, fl) {
   var summaryLine = buildCompactSummary(dong, ho, fl);
   var lines = [summaryLine];
   var warn = false;
+
+  var isCollective = (S.bld && S.bld.collective) || !!ho;
+  var lr = computeBestLandRight();
+  if (isCollective && lr.ratioText) {
+    lines.push('<small style="color:#5c3c00;">※ 대지권비율(<b>' + lr.ratioText + '</b>' + (lr.source ? ' · ' + lr.source : '') + ')은 공부 기준 자동추출값이므로, <b>등기서면 출력 전 등기사항전부증명서와 반드시 대조 확인 및 수정</b>하시기 바랍니다.</small>');
+  }
 
   if (S.det && S.det.area == null && ho) {
     warn = true;
@@ -1347,22 +1405,25 @@ function renderBldBanner(dong, ho, fl) {
   }
 }
 
-/* 브이월드 토지·대지권·공시지가 비동기 조회 */
-function startLandFetch(a, dong, ho) {
+/* 브이월드 토지·대지권등록부·공시지가 비동기 조회 */
+function startLandFetch(a, dong, ho, platArea) {
   S.land = null;
   setPill('stLand', 'loading', '⏳ 토지·대지권 조회 중...');
-  return api('/api/land?' + qs(Object.assign({}, a, { dongNm: dong, hoNm: ho })))
+  return api('/api/land?' + qs(Object.assign({}, a, { dongNm: dong, hoNm: ho, platArea: platArea || '' })))
     .then(function(l) {
       S.land = l;
+      var lr = computeBestLandRight();
       if (!l || !l.hasKey) {
-        setPill('stLand', 'none', '토지대장: VWORLD_KEY 미설정');
-      } else if (l.landArea || l.landPricePerM2 || l.landRightArea) {
+        setPill('stLand', 'none', '토지·대지권: VWORLD_KEY 미설정');
+      } else if (lr.ratioText) {
+        setPill('stLand', 'ok', '✓ 대지권: ' + lr.ratioText);
+      } else if (l.landArea || l.landPricePerM2) {
         var tag = (l.jimok ? l.jimok + ' ' : '') + (l.landArea ? won(l.landArea) + '㎡' : '확인됨');
         setPill('stLand', 'ok', '✓ 토지: ' + tag);
       } else {
-        setPill('stLand', 'none', '토지정보 없음');
+        setPill('stLand', 'none', '대지권 미조회');
       }
-      // 만약 브이월드에서 공동주택 공시가격이 바로 추출되었다면 공시가격에도 즉시 반영
+
       if (l && l.aptPubPrice && (!S.price || !S.price.hsprc)) {
         S.price = { hsprc: l.aptPubPrice, year: l.aptPubYear, stdDay: l.aptPubYear + '0101', status: 'ok' };
         S.priceLoading = false;
@@ -1375,7 +1436,11 @@ function startLandFetch(a, dong, ho) {
       renderBldBanner(dong, ho, fl);
     })
     .catch(function() {
-      setPill('stLand', 'none', '토지조회 생략');
+      var lr = computeBestLandRight();
+      if (lr.ratioText) setPill('stLand', 'ok', '✓ 대지권: ' + lr.ratioText);
+      else setPill('stLand', 'none', '토지조회 생략');
+      var fl = (S.det && S.det.flrNo) || (S.unit && S.unit.flr) || guessFloor(ho);
+      renderBldBanner(dong, ho, fl);
     });
 }
 
@@ -1430,7 +1495,7 @@ function pickAddr(a) {
 
   banner('bldMsg', 'info', '건축물대장 표제부 조회 중...');
   dongsP.then(function(b) {
-    startLandFetch(a, '', '');
+    startLandFetch(a, '', '', b.platArea);
     if (!b.dongs.length) {
       setPill('stUnit', 'ok', '✓ 일반건축물');
       fill($('dongSel'), ['(동 없음)'], function(x) { return x; }, '동'); $('dongSel').value = '0';
@@ -1456,7 +1521,7 @@ function pickAddr(a) {
     setPill('stUnit', 'fail', '✗ 건축물대장 오류');
     banner('bldMsg', 'err', '건축물대장 조회 실패: ' + e.message + ' — 전용면적·가격을 직접 입력해 진행하세요.');
     $('area').readOnly = false;
-    startLandFetch(a, '', '');
+    startLandFetch(a, '', '', null);
     buildPriceOptions(); applyPrice();
   });
 }
@@ -1632,9 +1697,6 @@ function loadUnit(dong, ho, u, dongsP) {
   S.priceLoading = true;
   bldPriceSummary();
 
-  // 브이월드 토지·대지권 조회 병렬 시작
-  startLandFetch(a, dong, ho);
-
   var unitP = api('/api/bld/unit?' + qs(p));
 
   unitP.then(function(d) {
@@ -1660,9 +1722,10 @@ function loadUnit(dong, ho, u, dongsP) {
       var finalHo   = (d.matched && d.matched.hoNm) ? d.matched.hoNm : ho;
       var pkList = (d.pks && d.pks.length) ? d.pks.join(',') : (d.pk || (u && u.pks ? u.pks.join(',') : ''));
 
+      startLandFetch(a, finalDong, finalHo, b ? b.platArea : null);
+
       syncBuildingToApplication(finalDong, finalHo);
 
-      // 브이월드로 이미 공시가격이 채워지지 않은 경우에만 공시가격 탐색 시작
       if (!S.price || !S.price.hsprc) {
         startPriceFetch(a, finalDong, finalHo, pkList);
       }
@@ -1685,6 +1748,7 @@ function loadUnit(dong, ho, u, dongsP) {
     setPill('stUnit', 'fail', '✗ 전유부 조회 실패');
     banner('bldMsg', 'err', '건축물대장 조회 실패: ' + e.message + ' — 전용면적·가격을 직접 입력해 진행하세요.');
     $('area').readOnly = false;
+    startLandFetch(a, dong, ho, S.bld ? S.bld.platArea : null);
     startPriceFetch(a, dong, ho, '');
     buildPriceOptions(); applyPrice(); bldPriceSummary();
   });
@@ -1828,7 +1892,7 @@ function baseLabel() {
   return o ? o.textContent.split('|')[0].trim() : '-';
 }
 
-/* ───── 4. 예상연금 조회 (6자리 생년월일 → 8자리 변환 전송) ───── */
+/* ───── 4. 예상연금 조회 ───── */
 $('calcBtn').onclick = function() {
   var rawOb = digits($('ownerBirth').value), rawSb = digits($('spouseBirth').value), hp = Number($('housePrc').value);
   if (!validYmd6(rawOb)) { alert('신청자 생년월일을 주민번호 앞자리처럼 6자리(예: 601231)로 입력하세요.'); $('ownerBirth').focus(); return; }
