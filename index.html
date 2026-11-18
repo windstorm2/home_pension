@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주택연금 통합 상담·신청 보조도구 v5.6</title>
+<title>주택연금 통합 상담·신청 보조도구 v5.7</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
 
@@ -96,7 +96,7 @@
   }
   .c-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
   }
   .c-label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
@@ -396,7 +396,7 @@
 <!-- 상단 고정 바 -->
 <div class="top-bar no-print">
   <div class="top-bar-inner">
-    <h1>주택연금 통합 상담·신청 보조도구 <small>v5.6</small></h1>
+    <h1>주택연금 통합 상담·신청 보조도구 <small>v5.7</small></h1>
     <div class="top-actions">
       <button class="btn-top" onclick="document.getElementById('app-anchor').scrollIntoView({behavior:'smooth'})">📄 신청서로 이동</button>
       <button class="btn-top accent" onclick="copyDocListText()">📋 필요서류 복사</button>
@@ -419,7 +419,7 @@
     </div>
   </div>
 
-  <!-- 1. 고객 기본 정보 -->
+  <!-- 1. 고객 기본 정보 (생년월일 6자리 입력 반영) -->
   <div class="c-sec">
     <h2>
       <span>Step 1. 고객 기본 정보 <small style="font-weight:400;color:#666;">(※ 신청자는 주택소유자 중 연소자 · 배우자 생년월일 미입력 시 배우자 없음 처리)</small></span>
@@ -427,12 +427,12 @@
     </h2>
     <div class="c-grid-3">
       <div>
-        <label class="c-label">신청자 생년월일 (8자리, 연소자)</label>
-        <input type="text" class="c-input" id="ownerBirth" inputmode="numeric" maxlength="8" placeholder="예: 19601231">
+        <label class="c-label">신청자 생년월일 (6자리, 연소자)</label>
+        <input type="text" class="c-input" id="ownerBirth" inputmode="numeric" maxlength="6" placeholder="예: 601231">
       </div>
       <div>
-        <label class="c-label">배우자 생년월일 (없으면 비워둠)</label>
-        <input type="text" class="c-input" id="spouseBirth" inputmode="numeric" maxlength="8" placeholder="예: 19601231">
+        <label class="c-label">배우자 생년월일 (6자리, 없으면 비워둠)</label>
+        <input type="text" class="c-input" id="spouseBirth" inputmode="numeric" maxlength="6" placeholder="예: 601231">
       </div>
       <div>
         <label class="c-label">일시인출금 희망액 (원)</label>
@@ -463,7 +463,7 @@
     </div>
   </div>
 
-  <!-- 2. 담보주택 주소 및 건축물대장 조회 -->
+  <!-- 2. 담보주택 주소 및 건축물·토지 조회 -->
   <div class="c-sec">
     <h2>
       <span>Step 2. 담보주택 조회 <small style="font-weight:400;color:#666;">(시/도 생략 시 부산·경남 양산 자동 우선 검색)</small></span>
@@ -477,6 +477,7 @@
     <!-- 실시간 조회 상태 배지 -->
     <div class="status-pills" id="fetchStatusBar" style="display:none;">
       <span class="pill none" id="stUnit">건축물대장: 대기</span>
+      <span class="pill none" id="stLand">토지·대지권: 대기</span>
       <span class="pill none" id="stPrice">공시가격: 대기</span>
       <span class="pill none" id="stSise">HF 인터넷시세: 대기</span>
     </div>
@@ -486,7 +487,7 @@
       <div><label class="c-label">호</label><select class="c-select" id="hoSel" disabled></select></div>
       <div><label class="c-label">전용면적 (㎡)</label><input type="text" class="c-input" id="area" readonly></div>
       <div>
-        <label class="c-label">최저층 여부 (자동판정, 변경 가능)</label>
+        <label class="c-label">최저층(자동, 변경가능)</label>
         <select class="c-select" id="lowest">
           <option value="N">아니오 (일반평균가)</option>
           <option value="Y">예 (하위평균가)</option>
@@ -916,6 +917,7 @@ var S = {
   units: [],
   unit: null,
   det: null,
+  land: null,
   price: null,
   priceErr: null,
   priceLoading: false,
@@ -1001,7 +1003,8 @@ function checkToken() {
       $('tokenSec').style.display = h.needToken ? '' : 'none';
       $('tokenState').textContent = h.tokenOk ? '✓ 접속 확인됨' : '✗ 토큰 불일치';
       $('tokenState').style.color = h.tokenOk ? '#2e7d32' : '#c62828';
-      $('apiStatus').textContent = h.ok ? '✓ API 연결 정상 (' + h.version + ')' : '';
+      var vTxt = h.hasVworldKey ? ' · V-World 연동됨' : '';
+      $('apiStatus').textContent = h.ok ? '✓ API 정상 (' + h.version + vTxt + ')' : '';
     }).catch(function() {
       $('apiStatus').textContent = '⚠ API 서버 연결 확인 필요';
       $('apiStatus').style.color = '#c62828';
@@ -1016,30 +1019,32 @@ checkToken();
   $('sign_day').value = now.getDate();
 })();
 
-/* ───── 1. 고객 기본 정보 ↔ 신청서(Stage 2) 연동 ───── */
-function birthToSsnPrefix(ymd) {
-  var d = digits(ymd);
-  return d.length >= 8 ? d.slice(2, 8) + '-' : '';
+/* ───── 1. 고객 기본 정보 (6자리 생년월일 입력 → API용 8자리 자동 변환 및 신청서 연동) ───── */
+function ymd6To8(s) {
+  var d = digits(s);
+  if (d.length === 8) return d;
+  if (d.length !== 6) return '';
+  var yy = Number(d.slice(0, 2));
+  var century = yy <= 25 ? '20' : '19';
+  return century + d;
 }
 
 $('ownerBirth').oninput = function() {
-  this.value = digits(this.value).slice(0, 8);
-  var pfx = birthToSsnPrefix(this.value);
-  if (pfx) {
+  this.value = digits(this.value).slice(0, 6);
+  if (this.value.length === 6) {
     var cur = $('app_ssn').value;
     var tail = cur.indexOf('-') >= 0 ? cur.split('-')[1] : '';
-    $('app_ssn').value = pfx + (tail || '');
+    $('app_ssn').value = this.value + '-' + (tail || '');
   }
   updateDocList();
 };
 
 $('spouseBirth').oninput = function() {
-  this.value = digits(this.value).slice(0, 8);
-  var pfx = birthToSsnPrefix(this.value);
-  if (pfx) {
+  this.value = digits(this.value).slice(0, 6);
+  if (this.value.length === 6) {
     var cur = $('sp_ssn').value;
     var tail = cur.indexOf('-') >= 0 ? cur.split('-')[1] : '';
-    $('sp_ssn').value = pfx + (tail || '');
+    $('sp_ssn').value = this.value + '-' + (tail || '');
   } else if (this.value.length === 0) {
     $('sp_ssn').value = '';
   }
@@ -1077,10 +1082,10 @@ $('basicPension').onchange = $('oneHouse').onchange = $('under25').onchange = fu
   updateDocList();
 };
 
-function validYmd(s) {
-  s = digits(s);
-  if (s.length !== 8) return false;
-  var y = +s.slice(0,4), m = +s.slice(4,6), d = +s.slice(6);
+function validYmd6(s) {
+  var ymd8 = ymd6To8(s);
+  if (ymd8.length !== 8) return false;
+  var y = +ymd8.slice(0,4), m = +ymd8.slice(4,6), d = +ymd8.slice(6);
   return y >= 1900 && y <= new Date().getFullYear() && m >= 1 && m <= 12 && d >= 1 && d <= 31;
 }
 
@@ -1093,7 +1098,7 @@ $('ratio').onchange = function() {
   bldPriceSummary();
 };
 
-/* ───── 2. 주소 검색 & 건축물대장 요약 (건축연도·경과연수·단지규모 반영) ───── */
+/* ───── 2. 주소 검색 & 건축물·토지 요약 (단순화 표기 적용) ───── */
 $('addrBtn').onclick = searchAddrUI;
 $('addrQ').onkeydown = function(e) {
   if (e.key === 'Enter') searchAddrUI();
@@ -1130,7 +1135,7 @@ function searchAddrUI() {
 }
 
 function resetUnit() {
-  S.unit = null; S.det = null; S.price = null; S.priceErr = null; S.base = ''; S.officetel = false;
+  S.unit = null; S.det = null; S.land = null; S.price = null; S.priceErr = null; S.base = ''; S.officetel = false;
   S.priceSeq++;
   $('area').value = ''; $('area').readOnly = true;
   $('housePrc').value = ''; $('priceBase').innerHTML = ''; $('priceMsg').innerHTML = '';
@@ -1206,7 +1211,10 @@ function syncBuildingToApplication(dong, ho) {
   });
 
   if ($('area').value) $('area_bldg').value = $('area').value;
-  if (S.bld && S.bld.platArea && !$('area_land').value) $('area_land').value = S.bld.platArea;
+
+  // 신청서 대지면적 기입: 공동주택 대지권면적이 있으면 대지권면적, 없으면 토지대장/표제부 대지면적
+  var landAr = (S.det && S.det.ldaQotaAr) || (S.land && S.land.landRightArea) || (S.land && S.land.landArea) || (S.bld && S.bld.platArea);
+  if (landAr) $('area_land').value = landAr;
 
   var purps = ((S.det && S.det.purps) || '') + ' ' + ((S.unit && S.unit.purps) || '') + ' ' + ((S.bld && (S.bld.purps + ' ' + S.bld.etcPurps)) || '');
   var mappedType = mapPurpsToHouseType(purps);
@@ -1233,28 +1241,142 @@ function getBuildingMaxFloor(dong) {
   return S.bld.grndFlr || null;
 }
 
-/* 건축물대장 표제부 기반: 건축연도, 경과연수, 단지규모(동수·세대수) 문자열 포맷팅 */
-function formatBuildMeta(b) {
-  if (!b) return '';
-  var parts = [];
-  // 1) 건축연도 및 경과연수
-  if (b.useAprDay && String(b.useAprDay).length >= 4) {
+/* 구조 명칭 간결화: "철근콘크리트구조 (철근콘크리트조)" → "철근콘크리트조" */
+function shortStrct(s) {
+  if (!s) return '';
+  var clean = String(s).split('(')[0].trim();
+  return clean.replace(/구조$/, '조');
+}
+
+/* 1번 & 3번 요청 반영: 라벨 없이 내용만 간결하게 요약 문자열 생성
+   예: "109동 203호 · 아파트 · 철근콘크리트조 · 3층/총38층 · 10개동/1,200세대 · 사용승인 1999.01.21(27년 경과) · 전체대지 45,210㎡ · 대지권 42.1㎡(42.1/45210)" */
+function buildCompactSummary(dong, ho, fl) {
+  var items = [];
+  var b = S.bld, d = S.det, u = S.unit, l = S.land;
+
+  // 1) 동·호
+  var dh = ((dong && dong !== '(동 없음)') ? dong + ' ' : '') + (ho || '');
+  if (dh.trim()) items.push('<b>' + dh.trim() + '</b>');
+
+  // 2) 용도 (명칭 없이 값만)
+  var purps = (d && d.purps) || (u && u.purps) || (b && b.purps) || '';
+  if (purps) items.push('<b>' + purps + '</b>');
+
+  // 3) 구조 (명칭 없이 값만)
+  var st = shortStrct((d && d.strct) || (b && b.strct) || '');
+  if (st) items.push(st);
+
+  // 4) 층/총층수 ("3층/총38층")
+  var maxFlr = getBuildingMaxFloor(dong);
+  if (fl != null && maxFlr) items.push('<b>' + fl + '층/총' + maxFlr + '층</b>');
+  else if (fl != null) items.push('<b>' + fl + '층</b>');
+  else if (maxFlr) items.push('총' + maxFlr + '층');
+
+  // 5) 단지규모 ("10개동/1,200세대")
+  if (b) {
+    var dCnt = b.dongs ? b.dongs.length : 0;
+    var hCnt = b.totalHhld != null ? b.totalHhld : b.hhldCnt;
+    var scale = [];
+    if (dCnt > 0) scale.push(dCnt + '개동');
+    if (hCnt != null && hCnt > 0) scale.push(won(hCnt) + '세대');
+    if (scale.length) items.push(scale.join('/'));
+  }
+
+  // 6) 사용승인일 및 경과연수 ("사용승인 1999.01.21(27년 경과)")
+  if (b && b.useAprDay && String(b.useAprDay).length >= 4) {
     var ua = String(b.useAprDay);
     var bYear = Number(ua.slice(0, 4));
-    var curYear = new Date().getFullYear();
-    var elapsed = Math.max(0, curYear - bYear);
-    parts.push('건축연도: <b>' + bYear + '년</b> (사용승인 ' + fmtDay(ua) + ', 경과 <b>' + elapsed + '년</b>)');
+    var elapsed = Math.max(0, new Date().getFullYear() - bYear);
+    items.push('사용승인 ' + fmtDay(ua) + '(' + elapsed + '년 경과)');
   }
-  // 2) 단지규모 (총 동수 · 총 세대수)
-  var dongCnt = b.dongs ? b.dongs.length : 0;
-  var hhld = b.totalHhld != null ? b.totalHhld : b.hhldCnt;
-  var scaleItems = [];
-  if (dongCnt > 0) scaleItems.push('총 ' + dongCnt + '개동');
-  if (hhld != null && hhld > 0) scaleItems.push(won(hhld) + '세대');
-  if (scaleItems.length) {
-    parts.push('단지규모: <b>' + scaleItems.join(' · ') + '</b>');
+
+  // 7) 토지/대지권 정보 (공동주택 vs 일반주택 구분 표기)
+  var isCollective = (b && b.collective) || !!ho;
+  var totalLandAr = (l && l.landArea) || (b && b.platArea) || null;
+  var jimok = (l && l.jimok) || '';
+  var rightAr = (d && d.ldaQotaAr) || (l && l.landRightArea) || null;
+  var rightRate = (d && d.ldaQotaRate) || (l && l.landRightRatio) || '';
+
+  if (isCollective) {
+    if (totalLandAr) items.push('전체대지 ' + won(totalLandAr) + '㎡' + (jimok ? '(' + jimok + ')' : ''));
+    if (rightAr || rightRate) {
+      var rStr = '대지권 ';
+      if (rightAr) rStr += rightAr + '㎡';
+      if (rightRate) rStr += (rightAr ? '(' + rightRate + ')' : rightRate);
+      items.push(rStr);
+    }
+  } else {
+    if (jimok || totalLandAr) {
+      items.push('토지 ' + (jimok ? jimok + ' ' : '') + (totalLandAr ? won(totalLandAr) + '㎡' : ''));
+    }
   }
-  return parts.join(' · ');
+
+  // 8) 개별공시지가 (토지 공시가격)
+  if (l && l.landPricePerM2) {
+    var lpStr = '공시지가 ' + won(l.landPricePerM2) + '원/㎡';
+    if (!isCollective && l.landPriceTotal) {
+      lpStr += '(토지총액 ' + won(l.landPriceTotal) + '원)';
+    }
+    items.push(lpStr);
+  }
+
+  return items.join(' · ');
+}
+
+function renderBldBanner(dong, ho, fl) {
+  var summaryLine = buildCompactSummary(dong, ho, fl);
+  var lines = [summaryLine];
+  var warn = false;
+
+  if (S.det && S.det.area == null && ho) {
+    warn = true;
+    lines.push('전유면적을 건축물대장에서 찾지 못했습니다 — 면적을 직접 입력하세요.');
+  }
+  if (S.det && S.det.dupPk > 1) {
+    warn = true;
+    lines.push('동일 호수가 ' + S.det.dupPk + '건 중복 등록되어 첫 건의 면적을 적용했습니다.');
+  }
+  var purps = ((S.det && S.det.purps) || '') + ' ' + ((S.bld && S.bld.purps) || '');
+  if (/오피스텔|업무시설/.test(purps)) {
+    S.officetel = true;
+    lines.push('<b>주거목적 오피스텔은 월지급금 산정 기준이 일반주택과 다릅니다. 공사 홈페이지(주택구분: 주거목적 오피스텔) 또는 담당자 산출로 안내해 주세요.</b>');
+    banner('bldMsg', 'err', lines.join('<br>'));
+  } else {
+    S.officetel = false;
+    banner('bldMsg', warn ? 'warn' : 'info', lines.join('<br>'));
+  }
+}
+
+/* 브이월드 토지·대지권·공시지가 비동기 조회 */
+function startLandFetch(a, dong, ho) {
+  S.land = null;
+  setPill('stLand', 'loading', '⏳ 토지·대지권 조회 중...');
+  return api('/api/land?' + qs(Object.assign({}, a, { dongNm: dong, hoNm: ho })))
+    .then(function(l) {
+      S.land = l;
+      if (!l || !l.hasKey) {
+        setPill('stLand', 'none', '토지대장: VWORLD_KEY 미설정');
+      } else if (l.landArea || l.landPricePerM2 || l.landRightArea) {
+        var tag = (l.jimok ? l.jimok + ' ' : '') + (l.landArea ? won(l.landArea) + '㎡' : '확인됨');
+        setPill('stLand', 'ok', '✓ 토지: ' + tag);
+      } else {
+        setPill('stLand', 'none', '토지정보 없음');
+      }
+      // 만약 브이월드에서 공동주택 공시가격이 바로 추출되었다면 공시가격에도 즉시 반영
+      if (l && l.aptPubPrice && (!S.price || !S.price.hsprc)) {
+        S.price = { hsprc: l.aptPubPrice, year: l.aptPubYear, stdDay: l.aptPubYear + '0101', status: 'ok' };
+        S.priceLoading = false;
+        S.priceSeq++;
+        setPill('stPrice', 'ok', '✓ 공시가격: ' + won(l.aptPubPrice) + '원 (' + l.aptPubYear + '년)');
+        buildPriceOptions(); applyPrice(); bldPriceSummary();
+      }
+      syncBuildingToApplication(dong, ho);
+      var fl = (S.det && S.det.flrNo) || (S.unit && S.unit.flr) || guessFloor(ho);
+      renderBldBanner(dong, ho, fl);
+    })
+    .catch(function() {
+      setPill('stLand', 'none', '토지조회 생략');
+    });
 }
 
 function pickAddr(a) {
@@ -1283,7 +1405,7 @@ function pickAddr(a) {
       return S.sise;
     });
 
-  // 2) 표제부(동 목록, 사용승인일, 단지 세대수·층수) 조회
+  // 2) 표제부 조회
   setPill('stUnit', 'loading', '⏳ 건축물대장 조회 중...');
   var dongsP = api('/api/bld/dongs?' + qs(a)).then(function(b) { S.bld = b; return b; });
 
@@ -1292,7 +1414,7 @@ function pickAddr(a) {
     var hLabel = /호$/.test(ho) ? ho : ho + '호';
     fill($('dongSel'), [dLabel], function(x) { return x; }, '동'); $('dongSel').value = '0';
     fill($('hoSel'), [hLabel], function(x) { return x; }, '호'); $('hoSel').value = '0';
-    banner('bldMsg', 'info', '인식된 동·호(<b>' + (dong ? dLabel + ' ' : '') + hLabel + '</b>)로 건축물대장·시세·공시가격을 조회합니다...');
+    banner('bldMsg', 'info', '<b>' + (dong ? dLabel + ' ' : '') + hLabel + '</b> 조회 중...');
     loadUnit(dong, ho, null, dongsP);
 
     dongsP.then(function(b) {
@@ -1306,25 +1428,24 @@ function pickAddr(a) {
     return;
   }
 
-  banner('bldMsg', 'info', '건축물대장 표제부(동 목록) 조회 중...');
+  banner('bldMsg', 'info', '건축물대장 표제부 조회 중...');
   dongsP.then(function(b) {
-    var metaStr = formatBuildMeta(b);
+    startLandFetch(a, '', '');
     if (!b.dongs.length) {
-      setPill('stUnit', 'ok', '✓ 일반건축물(단독/다가구)');
+      setPill('stUnit', 'ok', '✓ 일반건축물');
       fill($('dongSel'), ['(동 없음)'], function(x) { return x; }, '동'); $('dongSel').value = '0';
       $('hoSel').innerHTML = ''; $('hoSel').disabled = true;
       if (b.totArea) { $('area').value = b.totArea; $('area_bldg').value = b.totArea; }
       $('area').readOnly = false;
       syncBuildingToApplication('', '');
-      var gfTxt = b.grndFlr ? ' · 지상 ' + b.grndFlr + '층' : '';
-      banner('bldMsg', 'warn', '건축물대장 구분: <b>' + (b.regstr || '일반건축물') + '</b> · 용도: <b>' + (b.purps || '미확인') + (b.etcPurps ? ' (' + b.etcPurps + ')' : '') + '</b>' + gfTxt + (metaStr ? '<br>' + metaStr : '') + '<br>전유부(호)가 없는 주택입니다 — 전용면적을 확인(또는 직접 입력)하고 공시가격 환산 또는 직접 입력으로 진행합니다.');
+      renderBldBanner('', '', null);
       startPriceFetch(a, '', '', '');
       return;
     }
-    setPill('stUnit', 'ok', '✓ 동 목록 (' + b.dongs.length + '개 동)');
+    setPill('stUnit', 'ok', '✓ ' + b.dongs.length + '개동');
     fill($('dongSel'), b.dongs, function(x) { return x; }, '동 선택');
     syncBuildingToApplication('', '');
-    banner('bldMsg', 'info', '건축물대장 구분: <b>' + (b.regstr || '') + '</b> · 용도: <b>' + (b.purps || '미확인') + (b.etcPurps ? ' (' + b.etcPurps + ')' : '') + '</b>' + (metaStr ? ' · ' + metaStr : '') + ' — 동을 선택하세요.');
+    renderBldBanner('', '', null);
     if (dong) {
       var dCore = digits(dong) || dong;
       var matchIdx = b.dongs.findIndex(function(x) { return (digits(x) || x) === dCore; });
@@ -1335,6 +1456,7 @@ function pickAddr(a) {
     setPill('stUnit', 'fail', '✗ 건축물대장 오류');
     banner('bldMsg', 'err', '건축물대장 조회 실패: ' + e.message + ' — 전용면적·가격을 직접 입력해 진행하세요.');
     $('area').readOnly = false;
+    startLandFetch(a, '', '');
     buildPriceOptions(); applyPrice();
   });
 }
@@ -1344,7 +1466,6 @@ $('dongSel').onchange = function() {
   var dong = S.bld.dongs[Number(i)];
   resetUnit(); $('hoSel').innerHTML = ''; $('hoSel').disabled = true;
   setPill('stUnit', 'loading', '⏳ ' + dong + ' 호 목록 조회 중...');
-  banner('bldMsg', 'info', dong + ' 호 목록 조회 중...');
   api('/api/bld/units?' + qs(Object.assign({}, S.addr, { dongNm: dong }))).then(function(units) {
     S.units = units;
     if (!units.length) {
@@ -1356,10 +1477,9 @@ $('dongSel').onchange = function() {
     }
     setPill('stUnit', 'ok', '✓ ' + dong + ' (' + units.length + '세대)');
     fill($('hoSel'), units, function(u) {
-      return u.hoNm + ' · ' + (u.under ? '지하 ' : '') + (u.flr != null ? u.flr + '층(' + u.flrSrc + ')' : '층 미확인') + (u.lowest ? ' · 최저층' : '') + (u.dup ? ' · 중복등록' : '');
+      return u.hoNm + ' · ' + (u.under ? '지하 ' : '') + (u.flr != null ? u.flr + '층' : '층 미확인') + (u.lowest ? ' · 최저층' : '');
     }, '호 선택 (' + units.length + '세대)');
-    var metaStr = formatBuildMeta(S.bld);
-    banner('bldMsg', 'info', '<b>' + dong + '</b> (' + units.length + '세대)' + (metaStr ? ' · ' + metaStr : '') + ' — 호를 선택하세요.');
+    renderBldBanner(dong, '', null);
     if (units.length === 1) { $('hoSel').value = '0'; $('hoSel').onchange(); }
   }).catch(function(e) {
     setPill('stUnit', 'fail', '✗ 호 목록 실패');
@@ -1389,7 +1509,7 @@ function guessFloor(h) {
   return Number(d.slice(0, d.length - 2));
 }
 
-/* ───── 공시가격: 표제부 동별 실제 세대수 누적 비율 계산 + 양방향 2페이지 분할 스캔 ───── */
+/* ───── 공시가격: 표제부 동별 세대수 누적 비율 계산 + 양방향 2페이지 분할 스캔 ───── */
 function calcTargetRatio(dong, ho) {
   if (!S.bld || !S.bld.dongs || !S.bld.dongs.length || !dong) return 0;
   var targetKey = normDongKey(dong);
@@ -1448,7 +1568,7 @@ async function startPriceFetch(a, dong, ho, pkStr) {
   for (var yi = 0; yi < years.length; yi++) {
     if (mySeq !== S.priceSeq) return;
     var yr = years[yi];
-    setPill('stPrice', 'loading', '⏳ 공시가격 (' + yr + '년 1페이지 확인 중)...');
+    setPill('stPrice', 'loading', '⏳ 공시가격 (' + yr + '년 확인 중)...');
 
     var p1;
     try {
@@ -1486,7 +1606,7 @@ async function startPriceFetch(a, dong, ho, pkStr) {
           scanned += (res.scanned || 0);
           if (res.status === 'ok' && res.hsprc) {
             S.price = res; S.priceLoading = false; S.priceProgress = '';
-            setPill('stPrice', 'ok', '✓ 공시가격: ' + won(res.hsprc) + '원 (' + yr + '년, P' + chunk.join('/') + ' 적중)');
+            setPill('stPrice', 'ok', '✓ 공시가격: ' + won(res.hsprc) + '원 (' + yr + '년)');
             buildPriceOptions(); applyPrice(); bldPriceSummary();
             return;
           }
@@ -1507,10 +1627,13 @@ function loadUnit(dong, ho, u, dongsP) {
   resetUnit(); S.unit = u;
   var a = S.addr, p = Object.assign({}, a, { dongNm: dong, hoNm: ho, pks: u ? u.pks.join(',') : '' });
 
-  setPill('stUnit', 'loading', '⏳ 전유면적·관리번호 조회 중...');
-  setPill('stPrice', 'loading', '⏳ 공시가격 대기(관리번호·비율 계산 후 즉시 탐색)...');
+  setPill('stUnit', 'loading', '⏳ 전유부 조회 중...');
+  setPill('stPrice', 'loading', '⏳ 공시가격 대기...');
   S.priceLoading = true;
   bldPriceSummary();
+
+  // 브이월드 토지·대지권 조회 병렬 시작
+  startLandFetch(a, dong, ho);
 
   var unitP = api('/api/bld/unit?' + qs(p));
 
@@ -1538,38 +1661,22 @@ function loadUnit(dong, ho, u, dongsP) {
       var pkList = (d.pks && d.pks.length) ? d.pks.join(',') : (d.pk || (u && u.pks ? u.pks.join(',') : ''));
 
       syncBuildingToApplication(finalDong, finalHo);
-      startPriceFetch(a, finalDong, finalHo, pkList);
 
-      var maxFlr = getBuildingMaxFloor(finalDong || dong);
-      var flrText = (fl != null ? fl + '층' + (d.flrNo != null ? '(대장)' : '(호수추정)') : '미확인') + (maxFlr ? ' / 건물 지상 ' + maxFlr + '층' : '');
-      var metaStr = formatBuildMeta(b);
+      // 브이월드로 이미 공시가격이 채워지지 않은 경우에만 공시가격 탐색 시작
+      if (!S.price || !S.price.hsprc) {
+        startPriceFetch(a, finalDong, finalHo, pkList);
+      }
 
-      var purps = d.purps || (u && u.purps) || (b && (b.purps + (b.etcPurps ? ' (' + b.etcPurps + ')' : ''))) || '미확인';
-      var line1 = '<b>' + (finalDong ? finalDong + ' ' : '') + finalHo + '</b> · 용도: <b>' + purps + '</b>' + (d.etcPurps && d.purps ? ' (' + d.etcPurps + ')' : '') + (d.strct ? ' · 구조: <b>' + d.strct + '</b>' : '') + ' · 해당층/총층수: <b>' + flrText + '</b> · 최저층 자동판정: <b>' + (low ? '예' : '아니오') + '</b>';
-      var msg = [line1];
-      if (metaStr) msg.push(metaStr);
+      renderBldBanner(finalDong, finalHo, fl);
 
-      var warn = false;
       if (d.area == null) {
-        warn = true;
-        msg.push('전유면적을 건축물대장에서 찾지 못했습니다 — 면적을 직접 입력하세요.');
         api('/api/bld/raw?' + qs(Object.assign({}, a, { dongNm: dong }))).then(function(r) {
           addBanner('bldMsg', 'info', r.total
             ? '대장 등록 표기 예시 — 동: <b>' + r.dongs.join(', ') + '</b> / 호: ' + r.hos.join(', ')
             : '이 필지에는 집합건축물 전유부 자료가 없습니다 — 일반건축물대장 표제부 면적을 참고해 직접 입력하세요.');
         }).catch(function() {});
       }
-      if (d.dupPk > 1) {
-        warn = true;
-        msg.push('동일 호수가 ' + d.dupPk + '건 중복 등록되어 있어 첫 건의 면적을 적용했습니다.');
-      }
-      if (/오피스텔|업무시설/.test(purps)) {
-        S.officetel = true;
-        banner('bldMsg', 'err', msg.join('<br>') + '<br><b>주거목적 오피스텔은 월지급금 산정 기준이 일반주택과 다릅니다. 공사 홈페이지 예상연금조회(주택구분: 주거목적 오피스텔) 또는 담당자 산출로 안내해 주세요.</b>');
-      } else {
-        S.officetel = false;
-        banner('bldMsg', warn ? 'warn' : 'info', msg.join('<br>'));
-      }
+
       buildPriceOptions();
       applyPrice();
       bldPriceSummary();
@@ -1586,25 +1693,25 @@ function loadUnit(dong, ho, u, dongsP) {
 function bldPriceSummary() {
   var parts = [];
   if (S.priceLoading) {
-    parts.push('건축물대장 주택가격(공시가격): ⏳ <b>' + (S.priceProgress || '조회 중 (당해 연도 → 전년도 비율 탐색 중)...') + '</b>');
+    parts.push('공시가격: ⏳ <b>' + (S.priceProgress || '조회 중...') + '</b>');
   } else if (S.price && S.price.hsprc) {
-    parts.push('건축물대장 주택가격(공시가격): <b>' + won(S.price.hsprc) + '원</b> (' + (S.price.year ? S.price.year + '년, ' : '') + '기준일 ' + fmtDay(S.price.stdDay || S.price.crtnDay) + ') → ×' + $('ratio').value + '% = <b>' + won(hsprcConv()) + '원</b>');
+    parts.push('공시가격: <b>' + won(S.price.hsprc) + '원</b> (' + (S.price.year ? S.price.year + '년, ' : '') + '기준 ' + fmtDay(S.price.stdDay || S.price.crtnDay) + ') → ×' + $('ratio').value + '% = <b>' + won(hsprcConv()) + '원</b>');
   } else {
     var diag = (S.price && S.price.trace && S.price.trace.length) ? ' <small style="color:#666;">[' + S.price.trace.join(', ') + ']</small>' : '';
-    parts.push('건축물대장 주택가격(공시가격): <b>' + (S.priceErr ? '조회 실패 (' + S.priceErr + ')' : '조회안됨') + '</b>' + diag);
+    parts.push('공시가격: <b>' + (S.priceErr ? '조회 실패 (' + S.priceErr + ')' : '조회안됨') + '</b>' + diag);
   }
 
   if (S.siseLoading) {
-    parts.push('HF 인터넷시세: ⏳ <b>조회 중...</b>');
+    parts.push('HF 시세: ⏳ <b>조회 중...</b>');
   } else {
     var b = bestSise();
     if (b >= 0) {
       var it = S.sise.items[b];
-      parts.push('HF 인터넷시세(' + it.source + ' ' + it.area + '㎡, 기준일 ' + fmtDay(it.baseDay) + '): 하위평균 <b>' + won(it.lower) + '원</b> / 일반평균 <b>' + won(it.avg) + '원</b>');
+      parts.push('HF 시세(' + it.source + ' ' + it.area + '㎡, ' + fmtDay(it.baseDay) + '): 하위평균 <b>' + won(it.lower) + '원</b> / 일반평균 <b>' + won(it.avg) + '원</b>');
     } else if (S.sise && S.sise.status === 'ok') {
-      parts.push('HF 인터넷시세: 전용면적 ±' + AREA_TOL + '㎡ 이내 일치 타입 없음 (전체 ' + S.sise.items.length + '개 타입 조회됨)');
+      parts.push('HF 시세: 전용면적 ±' + AREA_TOL + '㎡ 이내 일치 타입 없음 (전체 ' + S.sise.items.length + '개 타입)');
     } else if (S.sise) {
-      parts.push('HF 인터넷시세: 조회안됨' + (S.sise.reason ? ' (' + S.sise.reason + ')' : ''));
+      parts.push('HF 시세: 조회안됨' + (S.sise.reason ? ' (' + S.sise.reason + ')' : ''));
     }
   }
   banner('bldPriceBanner', 'info', parts.join('<br>'));
@@ -1702,13 +1809,13 @@ function priceNotes() {
     if (it) addBanner('priceMsg', 'info', '<b>한국부동산원/국민은행 인터넷시세 기준</b> (' + it.source + ', 기준일 ' + fmtDay(it.baseDay) + ') — 최저층은 하위평균가, 그 외 층은 일반평균가 적용.');
   }
   if (S.base === 'hsprc' && S.price && S.price.hsprc) {
-    addBanner('priceMsg', 'warn', '⚠ <b>공시가격 보정 적용</b> — 건축물대장상 주택가격(공시가격 ' + won(S.price.hsprc) + '원, 기준일 ' + fmtDay(S.price.stdDay || S.price.crtnDay) + ')에 ' + $('ratio').value + '%를 적용한 참고용 추정치입니다. 공공데이터 기준 자료로 실제 공시가격과 다를 수 있으며, 감정평가 결과에 따라 연금액이 변동될 수 있습니다.');
+    addBanner('priceMsg', 'warn', '⚠ <b>공시가격 보정 적용</b> — 공시가격(' + won(S.price.hsprc) + '원, 기준일 ' + fmtDay(S.price.stdDay || S.price.crtnDay) + ')에 ' + $('ratio').value + '%를 적용한 참고용 추정치입니다. 감정평가 결과에 따라 연금액이 변동될 수 있습니다.');
   }
   if (S.base === 'manual') {
     addBanner('priceMsg', 'warn', '⚠ <b>상담자가 입력한 가격입니다.</b> 공사 가격평가 및 감정평가 결과에 따라 연금액이 변동될 수 있습니다.');
   }
   if (S.price && S.price.hsprc > 1200000000) {
-    addBanner('priceMsg', 'err', '건축물대장 주택가격 ' + won(S.price.hsprc) + '원 — <b>12억 초과. 가입요건(공시가격 등 12억 이하) 확인 필요</b> (계산은 계속 진행)');
+    addBanner('priceMsg', 'err', '공시가격 ' + won(S.price.hsprc) + '원 — <b>12억 초과. 가입요건(공시가격 등 12억 이하) 확인 필요</b> (계산은 계속 진행)');
   }
   var hp = Number($('housePrc').value);
   if (hp > 1200000000) {
@@ -1721,13 +1828,16 @@ function baseLabel() {
   return o ? o.textContent.split('|')[0].trim() : '-';
 }
 
-/* ───── 4. 예상연금 조회 및 5열 결과표 렌더링 ───── */
+/* ───── 4. 예상연금 조회 (6자리 생년월일 → 8자리 변환 전송) ───── */
 $('calcBtn').onclick = function() {
-  var ob = digits($('ownerBirth').value), sb = digits($('spouseBirth').value), hp = Number($('housePrc').value);
-  if (!validYmd(ob)) { alert('신청자 생년월일을 숫자 8자리(예: 19601231)로 입력하세요.'); $('ownerBirth').focus(); return; }
-  if (sb && !validYmd(sb)) { alert('배우자 생년월일을 숫자 8자리(예: 19601231)로 입력하거나, 배우자가 없으면 비워두세요.'); $('spouseBirth').focus(); return; }
+  var rawOb = digits($('ownerBirth').value), rawSb = digits($('spouseBirth').value), hp = Number($('housePrc').value);
+  if (!validYmd6(rawOb)) { alert('신청자 생년월일을 주민번호 앞자리처럼 6자리(예: 601231)로 입력하세요.'); $('ownerBirth').focus(); return; }
+  if (rawSb && !validYmd6(rawSb)) { alert('배우자 생년월일을 6자리(예: 601231)로 입력하거나, 배우자가 없으면 비워두세요.'); $('spouseBirth').focus(); return; }
   if (!hp) { alert('평가주택가격을 확인하세요.'); $('housePrc').focus(); return; }
   if (S.officetel) { alert('주거목적 오피스텔은 이 도구에서 산출하지 않습니다. 공사 홈페이지(주택구분: 주거목적 오피스텔) 또는 담당자 산출로 안내해 주세요.'); return; }
+
+  var ob8 = ymd6To8(rawOb);
+  var sb8 = rawSb ? ymd6To8(rawSb) : '';
 
   $('calcState').textContent = '예상연금 API 호출 중... (최대 5~6건 호출, 수 초 소요)';
   $('calcBtn').disabled = true;
@@ -1736,8 +1846,8 @@ $('calcBtn').onclick = function() {
     method: 'POST',
     body: JSON.stringify({
       housePrc: hp,
-      ownerBirth: ob,
-      spouseBirth: sb,
+      ownerBirth: ob8,
+      spouseBirth: sb8,
       lump: Number($('lump').value) || 0,
       basicPension: $('basicPension').value === 'Y',
       oneHouse: $('oneHouse').value === 'Y',
@@ -1924,7 +2034,7 @@ function isPreferentialNow() {
   var oh = $('oneHouse').value === 'Y';
   var u25 = $('under25').value;
   var hp = Number($('housePrc').value) || 0;
-  return bp && oh && (u25 === 'Y' || (u25 === 'U' && hp > 0 && hp < 250000000));
+  return bp && oh && u25 !== 'N' && hp > 0 && hp < 250000000;
 }
 
 function updateDocList() {
